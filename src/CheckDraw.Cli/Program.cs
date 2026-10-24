@@ -1,6 +1,7 @@
 ﻿using System.Text.Json;
 using CheckDraw.Cli;
 using CheckDraw.Engine.Domain;
+using CheckDraw.Engine.Extraction;
 using CheckDraw.Engine.Release;
 using CheckDraw.Extractors.Dxf;
 using CheckDraw.Infrastructure.Data;
@@ -68,7 +69,7 @@ static async Task Import(string dir, string dbPath, string supplier, string pack
         ? JsonSerializer.Deserialize<List<MasterListEntry>>(await File.ReadAllTextAsync(masterPath))!
         : new List<MasterListEntry>();
 
-    var importer = new BatchImporter(new[] { new DxfExtractor() });
+    var importer = new BatchImporter(new IDocumentExtractor[] { new DxfExtractor(), new OdaDwgExtractor() });
     var result = await importer.ImportAsync(dir, contract, master, dbPath, supplier, package);
 
     var b = result.Batch;

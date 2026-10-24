@@ -1,0 +1,22 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- AutoCAD 2025 (.NET 8). Para AutoCAD <=2024 criar variante net48;
+         para AutoCAD 2026 subir pacotes p/ 26.x e target net10. -->
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>12.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Assemblies Autodesk são referência de compilação; em runtime vêm da instalação -->
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- AutoCAD.NET declara deps internas -V0xx não publicadas: pinar explícito -->
+    <PackageReference Include="AutoCAD.NET" Version="25.0.0" ExcludeAssets="runtime" />
+    <PackageReference Include="AutoCAD.NET.Core" Version="25.0.0" ExcludeAssets="runtime" />
+    <PackageReference Include="AutoCAD.NET.Model" Version="25.0.0" ExcludeAssets="runtime" />
+    <ProjectReference Include="..\CheckDraw.Engine\CheckDraw.Engine.csproj" />
+  </ItemGroup>
+
+</Project>

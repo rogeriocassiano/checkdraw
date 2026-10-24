@@ -62,3 +62,17 @@ IA: `IAiAnalyzer` — Gemini atrás da interface; achados de IA nascem como **su
 
 - .NET SDK 9.0.101 ✓ — sem AutoCAD instalado — sem DWGs de teste
 - Pipeline completo testável via DXF; plugin AutoCAD compila em máquina com AutoCAD
+
+## Evidência de campo (desenho real conferido — AA3112M0003110 Rev.E, Küttner/Usiminas)
+
+Scan recebido em out/2026 confirmando o workflow real: papel + marca-texto + scan de volta.
+
+- **Convenção de marcação observada**: amarelo = verificado (BOM, balões, cotas, tags, tabela de rev, nº do desenho); vermelho = correção (rabiscos "DN", "1/2", setas); sem marcação = não conferido *nesta* verificação ou conferido em rodada anterior
+- **PDFs reais são scans** sem camada de texto → comparação DWG↔PDF e leitura de PDF exigem OCR/visão, não só parser de texto. Sobe a prioridade do Gemini vision
+- **Carimbo real = tabela de posições fixas** (DESENHO Nº, rev = maior letra da tabela de revisões, PACOTE, FORM., ITEM CODIFICÁVEL) → extrator DWG deve suportar **extração por região configurada**, não só bloco atributado
+- **Scans marcados são ingeríveis**: visão classifica marcações por região → reconstrói estado de conferência de rodadas anteriores ("verificado numa outra verificação"). Candidato a feature: `MarkingIngestion`
+- **BOM real**: colunas ID | QT | DN | DESCRIÇÃO | MATERIAL | REF. | PESO
+- **Confidencialidade literal**: carimbo declara propriedade USIMINAS + proibição de cessão — opt-in de IA por contrato é exigência contratual
+- Sufixo "-DC" confirmado = **Desenho Conferido** (scan marcado de rodada de conferência)
+  → importador deve classificar `<codigo>.pdf` (entregável, cenário B) ≠ `<codigo> -DC.pdf` (artefato de conferência). O -DC vincula ao desenho como evidência de rodada e é a entrada do reconhecimento de marcações por visão
+- Corpus ideal para reconhecimento de marcações: mais scans "-DC" de rodadas diferentes (Rogério vai conseguir)

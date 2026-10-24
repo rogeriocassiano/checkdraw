@@ -71,7 +71,14 @@ public class BatchImporter
         foreach (var file in batch.Files.Where(f => f.Health != FileHealth.Corrupt))
         {
             var extractor = _extractors.FirstOrDefault(e => e.CanRead(file.FullPath));
-            if (extractor == null) continue;
+            if (extractor == null)
+            {
+                // Sem extrator disponível (ex.: .dwg sem ODA/AutoCAD): evidência honesta, não silêncio
+                if (file.Extension is ".dwg" or ".dxf")
+                    file.Identity.EvidenceText =
+                        $"Sem extrator para '{file.Extension}' — instale o ODA File Converter ou use máquina com AutoCAD";
+                continue;
+            }
 
             var extraction = extractor.Extract(file.FullPath);
             if (!extraction.Success)
