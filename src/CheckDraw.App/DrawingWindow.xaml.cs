@@ -336,16 +336,17 @@ public partial class DrawingWindow : Window
             "green" => ("#8C66BB6A", "#FF2E7D32"),
             _ => step.Finding != null ? ("#8CF44336", "#FFB71C1C") : ("#8CFFEB3B", "#FFBDBB28")
         };
-        AddMark(step.Bounds, fill, stroke, instant);
+        AddMark(step.Bounds, fill, stroke, instant, dashed: _scanImage != null);
     }
 
-    private void AddMark(Rect b, string fill, string stroke, bool instant = false)
+    private void AddMark(Rect b, string fill, string stroke, bool instant = false, bool dashed = false)
     {
         var r = new Rectangle
         {
             Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString(fill)),
             Stroke = new SolidColorBrush((Color)ColorConverter.ConvertFromString(stroke)),
-            StrokeThickness = 0.4,
+            StrokeThickness = dashed ? 1.6 : 0.4,
+            StrokeDashArray = dashed ? new DoubleCollection { 4, 2 } : null,
             RadiusX = 1.5, RadiusY = 1.5,
             Opacity = 0
         };

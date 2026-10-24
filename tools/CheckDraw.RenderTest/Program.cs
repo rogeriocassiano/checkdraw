@@ -23,7 +23,8 @@ var t = new Thread(() =>
     if (scanMode)
     {
         var marks = System.Text.Json.JsonSerializer
-            .Deserialize<List<DrawingWindow.MarkRegion>>(File.ReadAllText(args[2]))!;
+            .Deserialize<List<DrawingWindow.MarkRegion>>(File.ReadAllText(args[2]),
+                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
         win = new DrawingWindow(Path.GetFullPath(fileName), Path.GetFileName(fileName), marks);
     }
     else
