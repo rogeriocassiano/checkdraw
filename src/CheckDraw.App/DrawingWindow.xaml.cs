@@ -34,7 +34,10 @@ public partial class DrawingWindow : Window
     private Point _dragStart;
     private bool _dragging;
 
-    private record CheckStep(Rect Bounds, string Handle, string Label, Finding? Finding, string Mark = "yellow");
+    private record CheckStep(Rect Bounds, string Handle, string Label, Finding? Finding, string Mark = "yellow")
+    {
+        public List<double>? Pts { get; init; }
+    }
 
     /// <summary>Região de marcação detectada num scan "-DC" (ingestão por imagem).</summary>
     public class MarkRegion
@@ -44,6 +47,8 @@ public partial class DrawingWindow : Window
         public double W { get; set; }
         public double H { get; set; }
         public string Color { get; set; } = "yellow";
+        /// <summary>Contorno preciso da marcação [x1,y1,x2,y2,...] em px da imagem.</summary>
+        public List<double>? Pts { get; set; }
     }
 
     private readonly string? _scanImage;
@@ -157,7 +162,7 @@ public partial class DrawingWindow : Window
                 "red" => "Correção pendente — não alterada",
                 _ => "Região marcada como verificada — preservada"
             };
-            _steps.Add(new CheckStep(bounds, "", label, finding, m.Color));
+            _steps.Add(new CheckStep(bounds, "", label, finding, m.Color) { Pts = m.Pts });
         }
     }
 
@@ -351,7 +356,26 @@ public partial class DrawingWindow : Window
             "green" => ("#8C66BB6A", "#FF2E7D32"),
             _ => step.Finding != null ? ("#8CF44336", "#FFB71C1C") : ("#8CFFEB3B", "#FFBDBB28")
         };
+        if (step.Pts is { Count: >= 6 })
+        { AddMarkPoly(step.Pts, fill, stroke, instant); return; }
         AddMark(step.Bounds, fill, stroke, instant, dashed: _scanImage != null);
+    }
+
+    private void AddMarkPoly(List<double> pts, string fill, string stroke, bool instant)
+    {
+        var poly = new Polygon
+        {
+            Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString(fill)),
+            Stroke = new SolidColorBrush((Color)ColorConverter.ConvertFromString(stroke)),
+            StrokeThickness = 1.5,
+            Points = new PointCollection(Enumerable.Range(0, pts.Count / 2)
+                .Select(i => new Point(pts[i * 2], pts[i * 2 + 1]))),
+            Opacity = 0
+        };
+        DrawCanvas.Children.Add(poly);
+        _marks.Add(poly);
+        if (instant) poly.Opacity = 1;
+        else poly.BeginAnimation(OpacityProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(220)));
     }
 
     private void AddMark(Rect b, string fill, string stroke, bool instant = false, bool dashed = false)
