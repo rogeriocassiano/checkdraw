@@ -82,7 +82,7 @@ app.MapPost("/api/transfer", async (TransferReq r) =>
     return res.Error != null ? Results.BadRequest(res.Error) : Results.Ok(res);
 });
 
-app.MapGet("/api/health", () => Results.Ok(new { status = "ok", db = dbPath }));
+app.MapGet("/api/health", () => Results.Ok(new { status = "ok", db = dbPath.Contains("Host=") ? "postgres" : "sqlite" }));
 
 app.Run();
 
