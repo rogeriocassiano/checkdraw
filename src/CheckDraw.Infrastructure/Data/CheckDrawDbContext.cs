@@ -17,6 +17,7 @@ public class CheckDrawDbContext : DbContext
     public DbSet<ContractProfile> Contracts => Set<ContractProfile>();
     public DbSet<MasterListEntry> MasterList => Set<MasterListEntry>();
     public DbSet<ReleaseAttempt> ReleaseAttempts => Set<ReleaseAttempt>();
+    public DbSet<CheckMark> CheckMarks => Set<CheckMark>();
     public DbSet<AuditEvent> AuditLog => Set<AuditEvent>();
 
     protected override void OnConfiguring(DbContextOptionsBuilder b) =>

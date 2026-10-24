@@ -120,7 +120,7 @@ public partial class MainWindow : Window
     {
         if (QueueGrid.SelectedItem is not QueueRow row) { Status("Selecione um desenho"); return; }
         var findings = _allFindings.Where(f => f.FileName == row.FileName);
-        new DrawingWindow(row.FullPath, row.FileName, findings) { Owner = this }.Show();
+        new DrawingWindow(row.FullPath, row.FileName, findings, DbPath) { Owner = this }.Show();
     }
 
     private void Authorize_Click(object sender, RoutedEventArgs e)

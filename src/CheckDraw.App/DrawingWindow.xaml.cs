@@ -1,3 +1,4 @@
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -8,6 +9,8 @@ using System.Windows.Shapes;
 using CheckDraw.Engine.Domain;
 using CheckDraw.Engine.Extraction;
 using CheckDraw.Extractors.Dxf;
+using CheckDraw.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace CheckDraw.App;
 
@@ -45,11 +48,21 @@ public partial class DrawingWindow : Window
 
     private readonly string? _scanImage;
     private readonly List<MarkRegion> _scanMarks = new();
+    private readonly string _fileName;
+    private readonly string? _dbPath;
+    private bool _marking;
+    private CheckState _markState = CheckState.CheckedOk;
+    private Point _markOrigin;
+    private Rectangle? _selRect;
+    private bool _markDragging;
+    private readonly List<(CheckMark Mark, Shape Shape)> _userMarks = new();
 
-    public DrawingWindow(string filePath, string fileName, IEnumerable<Finding> findings)
+    public DrawingWindow(string filePath, string fileName, IEnumerable<Finding> findings, string? dbPath = null)
     {
         InitializeComponent();
         _filePath = filePath;
+        _fileName = fileName;
+        _dbPath = dbPath;
         _findings = findings.ToList();
         TitleText.Text = fileName;
         FindingsList.ItemsSource = _findings;
@@ -58,7 +71,7 @@ public partial class DrawingWindow : Window
     }
 
     /// <summary>Modo scan "-DC": exibe o desenho conferido digitalizado e ingere as marcas detectadas.</summary>
-    public DrawingWindow(string imagePath, string fileName, List<MarkRegion> marks)
+    public DrawingWindow(string imagePath, string fileName, List<MarkRegion> marks, string? dbPath = null)
         : this(imagePath, fileName,
             marks.Where(m => m.Color is "red" or "orange" or "green").Select(m => new Finding
             {
@@ -74,7 +87,7 @@ public partial class DrawingWindow : Window
                 Kind = FindingKind.Objective,
                 Severity = m.Color == "red" ? FindingSeverity.Warning : FindingSeverity.Info,
                 FileName = fileName
-            }))
+            }), dbPath)
     {
         _scanImage = imagePath;
         _scanMarks = marks;
@@ -88,6 +101,7 @@ public partial class DrawingWindow : Window
             RenderScan();
             BuildScanSteps();
             FitView();
+            LoadUserMarks();
             StepText.Text = $"Scan ingerido: {_scanMarks.Count(m => m.Color == "yellow")} verificadas, " +
                             $"{_scanMarks.Count(m => m.Color == "orange")} a revalidar, " +
                             $"{_scanMarks.Count(m => m.Color == "green")} correções aparentes, " +
@@ -106,6 +120,7 @@ public partial class DrawingWindow : Window
         RenderEntities();
         BuildSteps();
         FitView();
+        LoadUserMarks();
         StepText.Text = $"{_ex.Texts.Count + _ex.Geometry.Count + _ex.Blocks.Count + _ex.Dimensions.Count} entidades extraídas. Pronto para conferir.";
     }
 
@@ -382,6 +397,80 @@ public partial class DrawingWindow : Window
         StepText.Text = "Marcas limpas.";
     }
 
+    // ---- marcação manual (marca-texto digital, RF-05 por região) ----
+    private void MarkToggle_Changed(object s, RoutedEventArgs e) =>
+        _marking = MarkToggle.IsChecked == true;
+
+    private void MarkState_Picked(object s, RoutedEventArgs e) =>
+        _markState = Enum.Parse<CheckState>((string)((RadioButton)s).Tag);
+
+    private static (string fill, string stroke) MarkColors(CheckState st) => st switch
+    {
+        CheckState.NeedsCorrection => ("#8CF44336", "#FFB71C1C"),
+        CheckState.NeedsRevalidation => ("#8CFF9800", "#FFE65100"),
+        _ => ("#8CFFEB3B", "#FFBDBB28")
+    };
+
+    private void LoadUserMarks()
+    {
+        if (_dbPath == null || !File.Exists(_dbPath)) return;
+        using var db = new CheckDrawDbContext(_dbPath);
+        foreach (var m in db.CheckMarks.Where(c => c.FileName == _fileName).ToList())
+            AddUserMarkShape(m);
+    }
+
+    private void AddUserMarkShape(CheckMark m)
+    {
+        var (fill, stroke) = MarkColors(m.State);
+        var r = new Rectangle
+        {
+            Width = m.W, Height = m.H,
+            Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString(fill)),
+            Stroke = new SolidColorBrush((Color)ColorConverter.ConvertFromString(stroke)),
+            StrokeThickness = 1.2,
+            RadiusX = 1.5, RadiusY = 1.5,
+            ToolTip = $"{m.State} — {m.User} {m.CreatedAt:dd/MM HH:mm}"
+        };
+        Canvas.SetLeft(r, m.X); Canvas.SetTop(r, m.Y);
+        DrawCanvas.Children.Add(r);
+        _userMarks.Add((m, r));
+    }
+
+    private void SaveUserMark(Rect b)
+    {
+        var mark = new CheckMark
+        {
+            FileName = _fileName,
+            X = b.X, Y = b.Y, W = b.Width, H = b.Height,
+            State = _markState,
+            User = Environment.UserName
+        };
+        if (_dbPath != null)
+        {
+            using var db = new CheckDrawDbContext(_dbPath);
+            db.CheckMarks.Add(mark);
+            db.SaveChanges();
+        }
+        AddUserMarkShape(mark);
+        StepText.Text = $"Marca {_markState} salva em ({b.X:0}, {b.Y:0})" + (_dbPath == null ? " (sem banco — efêmera)" : "");
+    }
+
+    private void DeleteUserMarkAt(Point p)
+    {
+        var hit = _userMarks.LastOrDefault(um =>
+            p.X >= um.Mark.X && p.X <= um.Mark.X + um.Mark.W &&
+            p.Y >= um.Mark.Y && p.Y <= um.Mark.Y + um.Mark.H);
+        if (hit.Shape == null) { StepText.Text = "Nenhuma marca do usuário nesse ponto"; return; }
+        if (_dbPath != null)
+        {
+            using var db = new CheckDrawDbContext(_dbPath);
+            db.CheckMarks.Where(c => c.Id == hit.Mark.Id).ExecuteDelete();
+        }
+        DrawCanvas.Children.Remove(hit.Shape);
+        _userMarks.Remove(hit);
+        StepText.Text = "Marca removida";
+    }
+
     // ---- zoom / pan ----
     private void FitView()
     {
@@ -426,15 +515,60 @@ public partial class DrawingWindow : Window
     }
 
     private void Canvas_MouseDown(object s, MouseButtonEventArgs e)
-    { _dragging = true; _dragStart = e.GetPosition(this); DrawCanvas.CaptureMouse(); }
+    {
+        if (_marking && e.ChangedButton == MouseButton.Left)
+        {
+            _markDragging = true;
+            _markOrigin = e.GetPosition(DrawCanvas);
+            _selRect = new Rectangle
+            {
+                Stroke = Brushes.DodgerBlue, StrokeThickness = 1,
+                StrokeDashArray = new DoubleCollection { 3, 2 },
+                Fill = new SolidColorBrush(Color.FromArgb(0x20, 0x1E, 0x90, 0xFF))
+            };
+            Canvas.SetLeft(_selRect, _markOrigin.X); Canvas.SetTop(_selRect, _markOrigin.Y);
+            DrawCanvas.Children.Add(_selRect);
+            DrawCanvas.CaptureMouse();
+            return;
+        }
+        _dragging = true; _dragStart = e.GetPosition(this); DrawCanvas.CaptureMouse();
+    }
+
     private void Canvas_MouseUp(object s, MouseButtonEventArgs e)
-    { _dragging = false; DrawCanvas.ReleaseMouseCapture(); }
+    {
+        if (_markDragging && _selRect != null)
+        {
+            var p = e.GetPosition(DrawCanvas);
+            var b = new Rect(_markOrigin, p);
+            DrawCanvas.Children.Remove(_selRect);
+            _selRect = null;
+            _markDragging = false;
+            DrawCanvas.ReleaseMouseCapture();
+            if (b.Width > 2 && b.Height > 2) SaveUserMark(b);
+            return;
+        }
+        _dragging = false; DrawCanvas.ReleaseMouseCapture();
+    }
+
+    private void Canvas_MouseRightDown(object s, MouseButtonEventArgs e)
+    {
+        if (_marking) DeleteUserMarkAt(e.GetPosition(DrawCanvas));
+    }
+
     private void Canvas_MouseMove(object s, MouseEventArgs e)
     {
+        if (_markDragging && _selRect != null)
+        {
+            var p = e.GetPosition(DrawCanvas);
+            var b = new Rect(_markOrigin, p);
+            Canvas.SetLeft(_selRect, b.X); Canvas.SetTop(_selRect, b.Y);
+            _selRect.Width = b.Width; _selRect.Height = b.Height;
+            return;
+        }
         if (!_dragging) return;
-        var p = e.GetPosition(this);
-        _tx += p.X - _dragStart.X; _ty += p.Y - _dragStart.Y;
-        _dragStart = p;
+        var pt = e.GetPosition(this);
+        _tx += pt.X - _dragStart.X; _ty += pt.Y - _dragStart.Y;
+        _dragStart = pt;
         ApplyTransform();
     }
 }

@@ -15,6 +15,7 @@
             <Grid>
                 <Canvas x:Name="DrawCanvas" Background="Transparent"
                         MouseLeftButtonDown="Canvas_MouseDown" MouseLeftButtonUp="Canvas_MouseUp"
+                        MouseRightButtonDown="Canvas_MouseRightDown"
                         MouseMove="Canvas_MouseMove" MouseWheel="Canvas_MouseWheel"/>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="6">
                     <Button Content="−" Click="ZoomOut_Click" Width="30" Height="26" Margin="0,0,4,0"
@@ -51,6 +52,26 @@
                         <Button x:Name="PlayBtn" Content="▶ Conferir" Click="Play_Click" Padding="14,6" Margin="0,0,6,0"/>
                         <Button Content="Limpar marcas" Click="Clear_Click" Padding="14,6"/>
                     </StackPanel>
+                </StackPanel>
+            </GroupBox>
+
+            <GroupBox Header="Marcação manual" Margin="0,8,0,0">
+                <StackPanel Margin="4">
+                    <ToggleButton x:Name="MarkToggle" Content="✏ Marcar" Padding="10,4"
+                                  Checked="MarkToggle_Changed" Unchecked="MarkToggle_Changed"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                        <RadioButton GroupName="mstate" IsChecked="True" Tag="CheckedOk" Checked="MarkState_Picked" Margin="0,0,8,0">
+                            <Rectangle Width="14" Height="10" Fill="#8CFFEB3B" Stroke="#FFBDBB28"/>
+                        </RadioButton>
+                        <RadioButton GroupName="mstate" Tag="NeedsCorrection" Checked="MarkState_Picked" Margin="0,0,8,0">
+                            <Rectangle Width="14" Height="10" Fill="#8CF44336" Stroke="#FFB71C1C"/>
+                        </RadioButton>
+                        <RadioButton GroupName="mstate" Tag="NeedsRevalidation" Checked="MarkState_Picked">
+                            <Rectangle Width="14" Height="10" Fill="#8CFF9800" Stroke="#FFE65100"/>
+                        </RadioButton>
+                    </StackPanel>
+                    <TextBlock Text="arraste p/ marcar · botão direito apaga marca"
+                               Foreground="Gray" FontSize="11" Margin="0,4,0,0"/>
                 </StackPanel>
             </GroupBox>
 
