@@ -48,8 +48,10 @@
 
             <GroupBox Header="Legenda" Margin="0,8,0,0">
                 <StackPanel Margin="4">
-                    <TextBlock><Rectangle Width="14" Height="10" Fill="#8CFFEB3B" Stroke="#FFBDBB28"/> verificado nesta rodada</TextBlock>
+                    <TextBlock><Rectangle Width="14" Height="10" Fill="#8CFFEB3B" Stroke="#FFBDBB28"/> verificado</TextBlock>
                     <TextBlock Margin="0,4,0,0"><Rectangle Width="14" Height="10" Fill="#8CF44336" Stroke="#FFB71C1C"/> apontamento / correção</TextBlock>
+                    <TextBlock Margin="0,4,0,0"><Rectangle Width="14" Height="10" Fill="#8CFF9800" Stroke="#FFE65100"/> revalidar (mudou)</TextBlock>
+                    <TextBlock Margin="0,4,0,0"><Rectangle Width="14" Height="10" Fill="#8C66BB6A" Stroke="#FF2E7D32"/> correção aparente</TextBlock>
                     <TextBlock Margin="0,4,0,0" Foreground="Gray">sem marca = não verificado</TextBlock>
                 </StackPanel>
             </GroupBox>

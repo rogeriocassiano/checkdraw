@@ -30,7 +30,7 @@ public partial class DrawingWindow : Window
     private Point _dragStart;
     private bool _dragging;
 
-    private record CheckStep(Rect Bounds, string Handle, string Label, Finding? Finding);
+    private record CheckStep(Rect Bounds, string Handle, string Label, Finding? Finding, string Mark = "yellow");
 
     /// <summary>Região de marcação detectada num scan "-DC" (ingestão por imagem).</summary>
     public class MarkRegion
@@ -58,13 +58,19 @@ public partial class DrawingWindow : Window
     /// <summary>Modo scan "-DC": exibe o desenho conferido digitalizado e ingere as marcas detectadas.</summary>
     public DrawingWindow(string imagePath, string fileName, List<MarkRegion> marks)
         : this(imagePath, fileName,
-            marks.Where(m => m.Color == "red").Select(m => new Finding
+            marks.Where(m => m.Color is "red" or "orange" or "green").Select(m => new Finding
             {
-                RuleId = "SCAN-RED",
-                Description = "Marcação de correção detectada no scan conferido",
+                RuleId = "SCAN-" + m.Color.ToUpperInvariant(),
+                Description = m.Color switch
+                {
+                    "red" => "Marcação de correção pendente (não alterada na nova revisão)",
+                    "orange" => "Região antes verificada mudou — revalidar",
+                    "green" => "Correção aparente aplicada — confirmar",
+                    _ => "Marcação"
+                },
                 Source = FindingSource.Rule,
                 Kind = FindingKind.Objective,
-                Severity = FindingSeverity.Warning,
+                Severity = m.Color == "red" ? FindingSeverity.Warning : FindingSeverity.Info,
                 FileName = fileName
             }))
     {
@@ -80,8 +86,10 @@ public partial class DrawingWindow : Window
             RenderScan();
             BuildScanSteps();
             FitView();
-            StepText.Text = $"Scan ingerido: {_scanMarks.Count(m => m.Color == "yellow")} marcas de verificado, " +
-                            $"{_scanMarks.Count(m => m.Color == "red")} de correção. ▶ para replay.";
+            StepText.Text = $"Scan ingerido: {_scanMarks.Count(m => m.Color == "yellow")} verificadas, " +
+                            $"{_scanMarks.Count(m => m.Color == "orange")} a revalidar, " +
+                            $"{_scanMarks.Count(m => m.Color == "green")} correções aparentes, " +
+                            $"{_scanMarks.Count(m => m.Color == "red")} correções pendentes. ▶ para replay.";
             return;
         }
 
@@ -118,14 +126,21 @@ public partial class DrawingWindow : Window
     private void BuildScanSteps()
     {
         _steps.Clear();
-        var redFindings = _findings.Where(f => f.RuleId == "SCAN-RED").ToList();
-        var redIndex = 0;
+        var pseudoFindings = _findings.Where(f => f.RuleId.StartsWith("SCAN-")).ToList();
+        var idx = 0;
         foreach (var m in _scanMarks.OrderBy(m => m.Y).ThenBy(m => m.X))
         {
             var bounds = new Rect(m.X, m.Y, m.W, m.H);
-            _steps.Add(m.Color == "red"
-                ? new CheckStep(bounds, "", "Marcação de correção detectada", redIndex < redFindings.Count ? redFindings[redIndex++] : null)
-                : new CheckStep(bounds, "", "Região marcada como verificada no papel", null));
+            var finding = m.Color is "red" or "orange" or "green" && idx < pseudoFindings.Count
+                ? pseudoFindings[idx++] : null;
+            var label = m.Color switch
+            {
+                "orange" => "Conteúdo mudou desde a conferência anterior — revalidar",
+                "green" => "Correção aparente aplicada — confirmar",
+                "red" => "Correção pendente — não alterada",
+                _ => "Região marcada como verificada — preservada"
+            };
+            _steps.Add(new CheckStep(bounds, "", label, finding, m.Color));
         }
     }
 
@@ -312,8 +327,14 @@ public partial class DrawingWindow : Window
     private void ApplyStep(CheckStep step, bool instant = false)
     {
         MoveCursorTo(step.Bounds);
-        if (step.Finding != null) AddMark(step.Bounds, "#8CF44336", "#FFB71C1C", instant);
-        else AddMark(step.Bounds, "#8CFFEB3B", "#FFBDBB28", instant);
+        var (fill, stroke) = step.Mark switch
+        {
+            "red" => ("#8CF44336", "#FFB71C1C"),
+            "orange" => ("#8CFF9800", "#FFE65100"),
+            "green" => ("#8C66BB6A", "#FF2E7D32"),
+            _ => step.Finding != null ? ("#8CF44336", "#FFB71C1C") : ("#8CFFEB3B", "#FFBDBB28")
+        };
+        AddMark(step.Bounds, fill, stroke, instant);
     }
 
     private void AddMark(Rect b, string fill, string stroke, bool instant = false)
