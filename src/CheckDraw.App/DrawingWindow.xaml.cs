@@ -401,8 +401,11 @@ public partial class DrawingWindow : Window
     private void MarkToggle_Changed(object s, RoutedEventArgs e) =>
         _marking = MarkToggle.IsChecked == true;
 
-    private void MarkState_Picked(object s, RoutedEventArgs e) =>
-        _markState = Enum.Parse<CheckState>((string)((RadioButton)s).Tag);
+    private void MarkState_Picked(object s, RoutedEventArgs e)
+    {
+        if (s is RadioButton { Tag: string tag })
+            _markState = Enum.Parse<CheckState>(tag);
+    }
 
     private static (string fill, string stroke) MarkColors(CheckState st) => st switch
     {
@@ -431,7 +434,9 @@ public partial class DrawingWindow : Window
             RadiusX = 1.5, RadiusY = 1.5,
             ToolTip = $"{m.State} — {m.User} {m.CreatedAt:dd/MM HH:mm}"
         };
-        Canvas.SetLeft(r, m.X); Canvas.SetTop(r, m.Y);
+        Canvas.SetLeft(r, m.X);
+        // DXF: Y pra cima → SetTop na coordenada invertida; scan: Y já é tela
+        Canvas.SetTop(r, _scanImage != null ? m.Y : Fy(m.Y + m.H));
         DrawCanvas.Children.Add(r);
         _userMarks.Add((m, r));
     }
@@ -441,7 +446,9 @@ public partial class DrawingWindow : Window
         var mark = new CheckMark
         {
             FileName = _fileName,
-            X = b.X, Y = b.Y, W = b.Width, H = b.Height,
+            X = b.X,
+            Y = _scanImage != null ? b.Y : _maxY - (b.Y + b.Height),
+            W = b.Width, H = b.Height,
             State = _markState,
             User = Environment.UserName
         };
@@ -457,9 +464,10 @@ public partial class DrawingWindow : Window
 
     private void DeleteUserMarkAt(Point p)
     {
+        var py = _scanImage != null ? p.Y : _maxY - p.Y;
         var hit = _userMarks.LastOrDefault(um =>
             p.X >= um.Mark.X && p.X <= um.Mark.X + um.Mark.W &&
-            p.Y >= um.Mark.Y && p.Y <= um.Mark.Y + um.Mark.H);
+            py >= um.Mark.Y && py <= um.Mark.Y + um.Mark.H);
         if (hit.Shape == null) { StepText.Text = "Nenhuma marca do usuário nesse ponto"; return; }
         if (_dbPath != null)
         {
