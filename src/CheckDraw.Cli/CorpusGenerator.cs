@@ -13,6 +13,8 @@ public static class CorpusGenerator
 {
     public static void Generate(string dir)
     {
+        // DXF exige ponto decimal: interpolação não pode usar cultura pt-BR
+        System.Globalization.CultureInfo.CurrentCulture = System.Globalization.CultureInfo.InvariantCulture;
         Directory.CreateDirectory(dir);
         var files = new Dictionary<string, string>();
 

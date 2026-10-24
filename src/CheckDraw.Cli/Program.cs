@@ -6,6 +6,7 @@ using CheckDraw.Engine.Release;
 using CheckDraw.Extractors.Dxf;
 using CheckDraw.Infrastructure.Data;
 using CheckDraw.Infrastructure.Import;
+using CheckDraw.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 
 var args0 = args.Length > 0 ? args[0] : "help";
@@ -40,6 +41,15 @@ switch (args0)
             Opt(args, "--code", ""), Opt(args, "--rev", ""), Opt(args, "--purpose", ""));
         break;
 
+    case "transfer":
+        await Transfer(Opt(args, "--db", "checkdraw.db"),
+            Opt(args, "--code", ""), Opt(args, "--from", ""), Opt(args, "--to", ""));
+        break;
+
+    case "seedmarks":
+        await SeedMarks(Opt(args, "--db", "checkdraw.db"), Opt(args, "--file", ""));
+        break;
+
     default:
         Console.WriteLine("""
             CheckDraw CLI — prova de conceito
@@ -49,6 +59,8 @@ switch (args0)
               check --db <f> --code C --rev R --state ok|correction|revalidation
               authorize --db <f> --code C --rev R --purpose fabrication|assembly|consultation
               release --db <f> --code C --rev R --purpose ...   avalia emissão (auditado)
+              transfer --db <f> --code C --from E --to F        transfere marcas entre revisões
+              seedmarks --db <f> --file <nome>                  semeia marcas de demo num arquivo
             """);
         break;
 }
@@ -163,6 +175,33 @@ static async Task Release(string dbPath, string code, string rev, string purpose
     db.AuditLog.Add(new AuditEvent { Action = "release", Detail = $"{attempt.Decision}: {attempt.Reason}", User = "cli" });
     await db.SaveChangesAsync();
     Console.WriteLine($"{attempt.Decision.ToString().ToUpperInvariant()}: {attempt.Reason}");
+}
+
+static async Task Transfer(string dbPath, string code, string from, string to)
+{
+    var svc = new RevisionTransferService(new IDocumentExtractor[] { new DxfExtractor(), new OdaDwgExtractor() });
+    var r = await svc.TransferAsync(dbPath, code, from, to);
+    Console.WriteLine(r.Error ?? $"Transferência {code} Rev.{from}→Rev.{to}: {r.Preserved} preservadas, {r.Revalidations} a revalidar");
+}
+
+static async Task SeedMarks(string dbPath, string fileName)
+{
+    await using var db = new CheckDrawDbContext(dbPath);
+    var file = await db.Files.FirstOrDefaultAsync(f => f.FileName == fileName);
+    if (file == null) { Console.WriteLine($"Arquivo '{fileName}' não encontrado no banco"); return; }
+    var marks = new[]
+    {
+        new CheckMark { FileName = fileName, DocumentCode = file.Identity.Code, Revision = file.Identity.Revision,
+            X = 420, Y = 15, W = 125, H = 75, State = CheckState.CheckedOk, Note = "carimbo", User = "demo" },
+        new CheckMark { FileName = fileName, DocumentCode = file.Identity.Code, Revision = file.Identity.Revision,
+            X = 70, Y = 290, W = 145, H = 30, State = CheckState.CheckedOk, Note = "trecho do isométrico", User = "demo" },
+        new CheckMark { FileName = fileName, DocumentCode = file.Identity.Code, Revision = file.Identity.Revision,
+            X = 250, Y = 225, W = 145, H = 30, State = CheckState.NeedsCorrection, Note = "medida suspeita", User = "demo" }
+    };
+    db.CheckMarks.AddRange(marks);
+    db.AuditLog.Add(new AuditEvent { Action = "seedmarks", Detail = $"{fileName}: {marks.Length} marcas demo", User = "demo" });
+    await db.SaveChangesAsync();
+    Console.WriteLine($"{marks.Length} marcas semeadas em {fileName}");
 }
 
 static Task<DocumentRevision?> FindRevision(CheckDrawDbContext db, string code, string rev) =>
