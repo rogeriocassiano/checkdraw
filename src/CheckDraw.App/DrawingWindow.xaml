@@ -16,6 +16,14 @@
                 <Canvas x:Name="DrawCanvas" Background="Transparent"
                         MouseLeftButtonDown="Canvas_MouseDown" MouseLeftButtonUp="Canvas_MouseUp"
                         MouseMove="Canvas_MouseMove" MouseWheel="Canvas_MouseWheel"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="6">
+                    <Button Content="−" Click="ZoomOut_Click" Width="30" Height="26" Margin="0,0,4,0"
+                            ToolTip="Diminuir zoom" FontWeight="Bold"/>
+                    <Button Content="+" Click="ZoomIn_Click" Width="30" Height="26" Margin="0,0,4,0"
+                            ToolTip="Aumentar zoom" FontWeight="Bold"/>
+                    <Button Content="⊡" Click="Fit_Click" Width="30" Height="26"
+                            ToolTip="Ajustar à tela" FontWeight="Bold"/>
+                </StackPanel>
                 <TextBlock Text="scroll = zoom · arrastar = mover" Foreground="#FF999999"
                            HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="8"/>
             </Grid>

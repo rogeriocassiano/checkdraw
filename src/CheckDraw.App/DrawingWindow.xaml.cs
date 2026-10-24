@@ -25,6 +25,7 @@ public partial class DrawingWindow : Window
     private readonly List<CheckStep> _steps = new();
     private Ellipse? _cursor;
     private bool _running;
+    private bool _needsFit;
     private double _minX, _maxX, _minY, _maxY;
     private double _scale = 1, _tx, _ty;
     private Point _dragStart;
@@ -53,6 +54,7 @@ public partial class DrawingWindow : Window
         TitleText.Text = fileName;
         FindingsList.ItemsSource = _findings;
         Loaded += (_, _) => LoadAndRender();
+        DrawCanvas.SizeChanged += (_, _) => { if (_needsFit) FitView(); };
     }
 
     /// <summary>Modo scan "-DC": exibe o desenho conferido digitalizado e ingere as marcas detectadas.</summary>
@@ -383,7 +385,8 @@ public partial class DrawingWindow : Window
     private void FitView()
     {
         var vw = DrawCanvas.ActualWidth; var vh = DrawCanvas.ActualHeight;
-        if (vw <= 0) { vw = 800; vh = 600; }
+        if (vw <= 0 || vh <= 0) { _needsFit = true; return; }
+        _needsFit = false;
         var bw = Math.Max(_maxX - _minX, 1); var bh = Math.Max(_maxY - _minY, 1);
         _scale = Math.Min(vw / bw, vh / bh) * 0.96;
         _tx = (vw - bw * _scale) / 2 - _minX * _scale;
@@ -396,6 +399,20 @@ public partial class DrawingWindow : Window
         {
             Children = { new ScaleTransform(_scale, _scale), new TranslateTransform(_tx, _ty) }
         };
+
+    private void ZoomBy(double factor)
+    {
+        var cx = DrawCanvas.ActualWidth / 2;
+        var cy = DrawCanvas.ActualHeight / 2;
+        _tx = cx - (cx - _tx) * factor;
+        _ty = cy - (cy - _ty) * factor;
+        _scale *= factor;
+        ApplyTransform();
+    }
+
+    private void ZoomIn_Click(object s, RoutedEventArgs e) => ZoomBy(1.25);
+    private void ZoomOut_Click(object s, RoutedEventArgs e) => ZoomBy(1 / 1.25);
+    private void Fit_Click(object s, RoutedEventArgs e) => FitView();
 
     private void Canvas_MouseWheel(object sender, MouseWheelEventArgs e)
     {
