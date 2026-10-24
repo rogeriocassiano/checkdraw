@@ -17,4 +17,6 @@ public class ChecklistItem
     public string? Expected { get; set; }                    // valor/padrão esperado, quando aplicável
     public FindingSeverity Severity { get; set; } = FindingSeverity.Warning;
     public bool AiCheckable { get; set; }                    // se a IA pode avaliar (senão, só regra)
+    /// <summary>Instrução que vai pro prompt da IA avaliar este item (modelo rev_cad).</summary>
+    public string? AiPromptHint { get; set; }
 }
