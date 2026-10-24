@@ -27,6 +27,21 @@ public class ExtractionResult
     public List<ExtractedBlock> Blocks { get; set; } = new();
     public List<ExtractedTable> Tables { get; set; } = new();
     public List<ExtractedDimension> Dimensions { get; set; } = new();
+    public List<ExtractedGeometry> Geometry { get; set; } = new();
+}
+
+/// <summary>Geometria vetorial para visualização (linhas, polilinhas, círculos).</summary>
+public class ExtractedGeometry
+{
+    public string Handle { get; set; } = string.Empty;
+    /// <summary>"line" | "polyline" | "circle"</summary>
+    public string Kind { get; set; } = string.Empty;
+    /// <summary>Coordenadas achatadas [x1,y1,x2,y2,...]; para círculo = centro.</summary>
+    public List<double> Points { get; set; } = new();
+    public double? Radius { get; set; }
+    /// <summary>Polilinha fechada.</summary>
+    public bool Closed { get; set; }
+    public string? Layer { get; set; }
 }
 
 public class ExtractedText

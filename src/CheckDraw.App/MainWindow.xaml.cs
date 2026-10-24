@@ -80,6 +80,7 @@ public partial class MainWindow : Window
                         Code = x.File.Identity.Code ?? "—",
                         Revision = x.File.Identity.Revision ?? "—",
                         Health = x.File.Health.ToString(),
+                        FullPath = x.File.FullPath,
                         Identification = x.File.Identity.Status.ToString(),
                         State = rev?.State ?? CheckState.NotChecked,
                         StateLabel = rev == null ? "—" : Label(rev.State)
@@ -113,6 +114,13 @@ public partial class MainWindow : Window
         db.SaveChanges();
         Status($"{row.Code} Rev.{row.Revision}: {Label(state)}");
         Reload();
+    }
+
+    private void View_Click(object sender, RoutedEventArgs e)
+    {
+        if (QueueGrid.SelectedItem is not QueueRow row) { Status("Selecione um desenho"); return; }
+        var findings = _allFindings.Where(f => f.FileName == row.FileName);
+        new DrawingWindow(row.FullPath, row.FileName, findings) { Owner = this }.Show();
     }
 
     private void Authorize_Click(object sender, RoutedEventArgs e)
@@ -159,6 +167,7 @@ public class QueueRow
     public string Code { get; set; } = "";
     public string Revision { get; set; } = "";
     public string Health { get; set; } = "";
+    public string FullPath { get; set; } = "";
     public string Identification { get; set; } = "";
     public CheckState State { get; set; }
     public string StateLabel { get; set; } = "";

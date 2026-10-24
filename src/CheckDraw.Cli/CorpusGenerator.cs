@@ -156,7 +156,7 @@ public static class CorpusGenerator
 
         """;
 
-    private static string Attrib(string handle, string tag, string value, double y) => $"""
+    private static string Attrib(string handle, string tag, string value, double y, double x = 425) => $"""
           0
         ATTRIB
           5
@@ -164,13 +164,13 @@ public static class CorpusGenerator
           8
         0
          10
-        10.0
+        {x:0.0}
          20
         {y:0.0}
          30
         0.0
          40
-        5.0
+        4.0
           1
         {value}
           2
@@ -180,14 +180,110 @@ public static class CorpusGenerator
 
         """;
 
+    /// <summary>Geometria do "desenho": moldura da folha, tabela do carimbo e traçado isométrico.</summary>
+    private static string DrawingGeometry()
+    {
+        string Line(string h, double x1, double y1, double x2, double y2) => $"""
+              0
+            LINE
+              5
+            {h}
+              8
+            0
+             10
+            {x1:0.0}
+             20
+            {y1:0.0}
+             30
+            0.0
+             11
+            {x2:0.0}
+             21
+            {y2:0.0}
+             31
+            0.0
+
+            """;
+
+        string Circle(string h, double x, double y, double r) => $"""
+              0
+            CIRCLE
+              5
+            {h}
+              8
+            0
+             10
+            {x:0.0}
+             20
+            {y:0.0}
+             30
+            0.0
+             40
+            {r:0.0}
+
+            """;
+
+        string Rect(string h, double x1, double y1, double x2, double y2) => $"""
+              0
+            LWPOLYLINE
+              5
+            {h}
+              8
+            0
+             90
+            4
+             70
+            1
+             10
+            {x1:0.0}
+             20
+            {y1:0.0}
+             10
+            {x2:0.0}
+             20
+            {y1:0.0}
+             10
+            {x2:0.0}
+             20
+            {y2:0.0}
+             10
+            {x1:0.0}
+             20
+            {y2:0.0}
+
+            """;
+
+        var g = new System.Text.StringBuilder();
+        // moldura da folha + margem
+        g.Append(Rect("F1", 5, 5, 555, 395));
+        g.Append(Rect("F2", 15, 15, 545, 385));
+        // tabela do carimbo (canto inferior direito)
+        g.Append(Rect("F3", 420, 15, 545, 90));
+        g.Append(Line("F4", 420, 55, 545, 55));
+        g.Append(Line("F5", 420, 40, 545, 40));
+        g.Append(Line("F6", 482, 15, 482, 40));
+        // traçado isométrico com "flanges" nos vértices
+        g.Append(Line("P1", 80, 300, 200, 300));
+        g.Append(Line("P2", 200, 300, 260, 240));
+        g.Append(Line("P3", 260, 240, 380, 240));
+        g.Append(Line("P4", 380, 240, 440, 180));
+        g.Append(Line("P5", 440, 180, 440, 120));
+        g.Append(Circle("P6", 200, 300, 8));
+        g.Append(Circle("P7", 380, 240, 8));
+        g.Append(Circle("P8", 440, 180, 6));
+        // eixo auxiliar
+        g.Append(Line("A1", 260, 240, 330, 160));
+        return g.ToString();
+    }
+
     private static string StandardA(string code, string rev, string title, string disc, string fmt, string extraEntities = "")
     {
         var attribs =
-            Attrib("A1", "CODIGO", code, 30) +
-            Attrib("A2", "REV", rev, 24) +
-            Attrib("A3", "TITULO", title, 18) +
-            Attrib("A4", "DISCIPLINA", disc, 12) +
-            Attrib("A5", "FORMATO", fmt, 6);
+            Attrib("A1", "CODIGO", code, 70) +
+            Attrib("A2", "REV", rev, 60) +
+            Attrib("A3", "TITULO", title, 45) +
+            Attrib("A4", "DISCIPLINA", disc, 32) +
+            Attrib("A5", "FORMATO", fmt, 20, 488);
 
         var insert = $"""
               0
@@ -213,16 +309,16 @@ public static class CorpusGenerator
 
             """;
 
-        return DxfWrap(insert + extraEntities, BlockDef("TITULO_A", attribs));
+        return DxfWrap(DrawingGeometry() + insert + extraEntities, BlockDef("TITULO_A", attribs));
     }
 
     private static string StandardB(string code, string rev, string title, string disc)
     {
         var attribs =
-            Attrib("B1", "NUMERO", code, 30) +
-            Attrib("B2", "REVISAO", rev, 24) +
-            Attrib("B3", "DESCRICAO", title, 18) +
-            Attrib("B4", "DISCIPLINA", disc, 12);
+            Attrib("B1", "NUMERO", code, 70) +
+            Attrib("B2", "REVISAO", rev, 60) +
+            Attrib("B3", "DESCRICAO", title, 45) +
+            Attrib("B4", "DISCIPLINA", disc, 32);
 
         var insert = $"""
               0
@@ -248,7 +344,7 @@ public static class CorpusGenerator
 
             """;
 
-        return DxfWrap(insert, BlockDef("TITULO_B", attribs));
+        return DxfWrap(DrawingGeometry() + insert, BlockDef("TITULO_B", attribs));
     }
 
     private static string LooseTexts(string code, string rev)
@@ -275,7 +371,7 @@ public static class CorpusGenerator
 
             """;
 
-        var entities =
+        var entities = DrawingGeometry() +
             Text("C1", $"DESENHO {code}", 40) +
             Text("C2", $"REV {rev}", 30) +
             Text("C3", "PECA FORA DO PADRAO DE CARIMBO", 20);

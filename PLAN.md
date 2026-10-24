@@ -76,3 +76,4 @@ Scan recebido em out/2026 confirmando o workflow real: papel + marca-texto + sca
 - Sufixo "-DC" confirmado = **Desenho Conferido** (scan marcado de rodada de conferência)
   → importador deve classificar `<codigo>.pdf` (entregável, cenário B) ≠ `<codigo> -DC.pdf` (artefato de conferência). O -DC vincula ao desenho como evidência de rodada e é a entrada do reconhecimento de marcações por visão
 - Corpus ideal para reconhecimento de marcações: mais scans "-DC" de rodadas diferentes (Rogério vai conseguir)
+- **Prova de conceito feita (out/2026)**: `AA3112M0003110 -DC.pdf` ingerido no viewer — detecção por cor (HSV + componentes conexos) encontrou 54 marcas amarelas + 10 vermelhas, reproduzidas digitalmente no app. Caminho sem IA validado; Gemini depois lê o conteúdo de cada região e vincula à entidade

@@ -1,0 +1,58 @@
+<Window x:Class="CheckDraw.App.DrawingWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="CheckDraw — Visualização do desenho" Width="1200" Height="740"
+        WindowStartupLocation="CenterOwner">
+    <Grid Margin="10">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="330"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Área do desenho -->
+        <Border Grid.Column="0" BorderBrush="#FFBBBBBB" BorderThickness="1"
+                Background="White" ClipToBounds="True" Margin="0,0,8,0">
+            <Grid>
+                <Canvas x:Name="DrawCanvas" Background="Transparent"
+                        MouseLeftButtonDown="Canvas_MouseDown" MouseLeftButtonUp="Canvas_MouseUp"
+                        MouseMove="Canvas_MouseMove" MouseWheel="Canvas_MouseWheel"/>
+                <TextBlock Text="scroll = zoom · arrastar = mover" Foreground="#FF999999"
+                           HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="8"/>
+            </Grid>
+        </Border>
+
+        <!-- Painel lateral -->
+        <StackPanel Grid.Column="1">
+            <TextBlock x:Name="TitleText" FontWeight="Bold" FontSize="14" TextWrapping="Wrap" Margin="0,0,0,8"/>
+
+            <GroupBox Header="Apontamentos" Margin="0,0,0,8">
+                <ListBox x:Name="FindingsList" MaxHeight="220" DisplayMemberPath="Description"/>
+            </GroupBox>
+
+            <GroupBox Header="Conferência ao vivo">
+                <StackPanel Margin="4">
+                    <TextBlock x:Name="StepText" TextWrapping="Wrap" MinHeight="44" Margin="0,0,0,6"
+                               Text="Pronto para conferir."/>
+                    <ProgressBar x:Name="CheckProgress" Height="6" Margin="0,0,0,8"/>
+                    <DockPanel Margin="0,0,0,8">
+                        <TextBlock Text="Velocidade" VerticalAlignment="Center"/>
+                        <Slider x:Name="SpeedSlider" Minimum="60" Maximum="1200" Value="350"
+                                DockPanel.Dock="Right" Width="160"/>
+                    </DockPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <Button x:Name="PlayBtn" Content="▶ Conferir" Click="Play_Click" Padding="14,6" Margin="0,0,6,0"/>
+                        <Button Content="Limpar marcas" Click="Clear_Click" Padding="14,6"/>
+                    </StackPanel>
+                </StackPanel>
+            </GroupBox>
+
+            <GroupBox Header="Legenda" Margin="0,8,0,0">
+                <StackPanel Margin="4">
+                    <TextBlock><Rectangle Width="14" Height="10" Fill="#8CFFEB3B" Stroke="#FFBDBB28"/> verificado nesta rodada</TextBlock>
+                    <TextBlock Margin="0,4,0,0"><Rectangle Width="14" Height="10" Fill="#8CF44336" Stroke="#FFB71C1C"/> apontamento / correção</TextBlock>
+                    <TextBlock Margin="0,4,0,0" Foreground="Gray">sem marca = não verificado</TextBlock>
+                </StackPanel>
+            </GroupBox>
+        </StackPanel>
+    </Grid>
+</Window>

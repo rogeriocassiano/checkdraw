@@ -74,8 +74,10 @@
                     Background="#FFFFF2A8" FontWeight="SemiBold"/>
             <Button Content="✗ Correção" Click="MarkCorrection_Click" Padding="14,6" Margin="0,0,6,0"
                     Background="#FFFF8A80" FontWeight="SemiBold"/>
-            <Button Content="↻ Revalidar" Click="MarkRevalidation_Click" Padding="14,6" Margin="0,0,24,0"
+            <Button Content="↻ Revalidar" Click="MarkRevalidation_Click" Padding="14,6" Margin="0,0,6,0"
                     Background="#FFFFCC80" FontWeight="SemiBold"/>
+            <Button Content="👁 Visualizar" Click="View_Click" Padding="14,6" Margin="0,0,24,0"
+                    FontWeight="SemiBold"/>
             <Button Content="Autorizar p/ fabricação" Click="Authorize_Click" Padding="12,6" Margin="0,0,6,0"/>
             <Button Content="Emitir controlado" Click="Release_Click" Padding="12,6"/>
         </DockPanel>
