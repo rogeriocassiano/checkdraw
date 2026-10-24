@@ -1,0 +1,17 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\CheckDraw.Engine\CheckDraw.Engine.csproj" />
+    <ProjectReference Include="..\CheckDraw.Infrastructure\CheckDraw.Infrastructure.csproj" />
+    <ProjectReference Include="..\CheckDraw.Extractors.Dxf\CheckDraw.Extractors.Dxf.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+  </PropertyGroup>
+
+</Project>

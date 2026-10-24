@@ -1,0 +1,83 @@
+﻿<Window x:Class="CheckDraw.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:app="clr-namespace:CheckDraw.App"
+        Title="CheckDraw — Conferência de lote" Width="1180" Height="760"
+        WindowStartupLocation="CenterScreen">
+    <Window.Resources>
+        <app:StateBrushConverter x:Key="StateBrush"/>
+        <app:SeverityBrushConverter x:Key="SeverityBrush"/>
+    </Window.Resources>
+
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Barra superior -->
+        <DockPanel Grid.Row="0" Margin="0,0,0,8">
+            <TextBlock Text="Banco:" VerticalAlignment="Center" Margin="0,0,4,0"/>
+            <TextBox x:Name="DbBox" Width="260" Text="testdata\checkdraw.db" Margin="0,0,10,0"/>
+            <TextBlock Text="Lote:" VerticalAlignment="Center" Margin="0,0,4,0"/>
+            <TextBox x:Name="DirBox" Width="260" Text="testdata\corpus" Margin="0,0,10,0"/>
+            <Button Content="Importar lote" Click="Import_Click" Padding="12,4" Margin="0,0,6,0"/>
+            <Button Content="Recarregar" Click="Reload_Click" Padding="12,4"/>
+            <TextBlock x:Name="StatusText" VerticalAlignment="Center" Margin="14,0,0,0" Foreground="Gray"/>
+        </DockPanel>
+
+        <!-- Fila de conferência -->
+        <GroupBox Grid.Row="1" Header="Fila de conferência (maior risco primeiro)" Margin="0,0,0,8">
+            <DataGrid x:Name="QueueGrid" AutoGenerateColumns="False" IsReadOnly="True"
+                      SelectionMode="Single" SelectionChanged="QueueGrid_SelectionChanged">
+                <DataGrid.RowStyle>
+                    <Style TargetType="DataGridRow">
+                        <Setter Property="Background" Value="{Binding State, Converter={StaticResource StateBrush}}"/>
+                    </Style>
+                </DataGrid.RowStyle>
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Score" Binding="{Binding Score}" Width="50"/>
+                    <DataGridTextColumn Header="Arquivo" Binding="{Binding FileName}" Width="170"/>
+                    <DataGridTextColumn Header="Código" Binding="{Binding Code}" Width="90"/>
+                    <DataGridTextColumn Header="Rev" Binding="{Binding Revision}" Width="45"/>
+                    <DataGridTextColumn Header="Saúde" Binding="{Binding Health}" Width="80"/>
+                    <DataGridTextColumn Header="Identificação" Binding="{Binding Identification}" Width="100"/>
+                    <DataGridTextColumn Header="Estado" Binding="{Binding StateLabel}" Width="*"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </GroupBox>
+
+        <!-- Apontamentos -->
+        <GroupBox Grid.Row="2" Header="Apontamentos do desenho selecionado" Margin="0,0,0,8">
+            <DataGrid x:Name="FindingsGrid" AutoGenerateColumns="False" IsReadOnly="True">
+                <DataGrid.RowStyle>
+                    <Style TargetType="DataGridRow">
+                        <Setter Property="Foreground" Value="{Binding Severity, Converter={StaticResource SeverityBrush}}"/>
+                    </Style>
+                </DataGrid.RowStyle>
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Sev" Binding="{Binding Severity}" Width="60"/>
+                    <DataGridTextColumn Header="Regra" Binding="{Binding RuleId}" Width="70"/>
+                    <DataGridTextColumn Header="Origem" Binding="{Binding Source}" Width="55"/>
+                    <DataGridTextColumn Header="Apontamento" Binding="{Binding Description}" Width="2*"/>
+                    <DataGridTextColumn Header="Evidência" Binding="{Binding Evidence}" Width="*"/>
+                    <DataGridTextColumn Header="Entidade" Binding="{Binding EntityRef}" Width="60"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </GroupBox>
+
+        <!-- Ações de conferência e liberação -->
+        <DockPanel Grid.Row="3" LastChildFill="False">
+            <Button Content="✓ Conferido" Click="MarkOk_Click" Padding="14,6" Margin="0,0,6,0"
+                    Background="#FFFFF2A8" FontWeight="SemiBold"/>
+            <Button Content="✗ Correção" Click="MarkCorrection_Click" Padding="14,6" Margin="0,0,6,0"
+                    Background="#FFFF8A80" FontWeight="SemiBold"/>
+            <Button Content="↻ Revalidar" Click="MarkRevalidation_Click" Padding="14,6" Margin="0,0,24,0"
+                    Background="#FFFFCC80" FontWeight="SemiBold"/>
+            <Button Content="Autorizar p/ fabricação" Click="Authorize_Click" Padding="12,6" Margin="0,0,6,0"/>
+            <Button Content="Emitir controlado" Click="Release_Click" Padding="12,6"/>
+        </DockPanel>
+    </Grid>
+</Window>
