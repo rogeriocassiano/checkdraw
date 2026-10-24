@@ -11,7 +11,10 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddCors();
+builder.Services.AddSingleton<CheckDraw.Api.JobQueue>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<CheckDraw.Api.JobQueue>());
 var app = builder.Build();
+var jobs = app.Services.GetRequiredService<CheckDraw.Api.JobQueue>();
 app.UseCors(c => c.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
 
 var dbPath = app.Configuration["CHECKDRAW_DB"] ?? "checkdraw-web.db";
@@ -44,10 +47,21 @@ app.MapPost("/api/upload", async (HttpRequest req) =>
         await using var s = File.Create(path);
         await f.CopyToAsync(s);
     }
-    var contract = new ContractProfile { Name = form["contract"].FirstOrDefault() ?? "Contrato padrão" };
-    var res = await new BatchImporter(extractors).ImportAsync(dir, contract,
-        new List<MasterListEntry>(), dbPath, form["supplier"].FirstOrDefault() ?? "");
-    return Results.Ok(new { files = res.Batch.Files.Count, findings = res.Findings.Count, revisions = res.Revisions.Count });
+    var supplier = form["supplier"].FirstOrDefault() ?? "";
+    var contractName = form["contract"].FirstOrDefault() ?? "Contrato padrão";
+    var jobId = jobs.Enqueue(async () =>
+    {
+        var contract = new ContractProfile { Name = contractName };
+        await new BatchImporter(extractors).ImportAsync(dir, contract,
+            new List<MasterListEntry>(), dbPath, supplier);
+    });
+    return Results.Ok(new { jobId, status = "queued" });
+});
+
+app.MapGet("/api/jobs/{id:guid}", (Guid id) =>
+{
+    var j = jobs.Get(id);
+    return j == null ? Results.NotFound() : Results.Ok(new { j.Status, j.Error });
 });
 
 app.MapGet("/api/queue", async () =>
@@ -99,6 +113,35 @@ app.MapPost("/api/transfer", async (TransferReq r) =>
     var svc = new RevisionTransferService(extractors);
     var res = await svc.TransferAsync(dbPath, r.Code, r.From, r.To);
     return res.Error != null ? Results.BadRequest(res.Error) : Results.Ok(res);
+});
+
+// Checklist: CRUD dos critérios + status por arquivo (ok/apontamento/pendente)
+app.MapGet("/api/checklist", async () =>
+{
+    await using var db = new CheckDrawDbContext(dbPath);
+    return Results.Ok(await db.ChecklistItems.ToListAsync());
+});
+
+app.MapPost("/api/checklist", async (ChecklistItem item) =>
+{
+    await using var db = new CheckDrawDbContext(dbPath);
+    item.Id = Guid.NewGuid();
+    db.ChecklistItems.Add(item);
+    await db.SaveChangesAsync();
+    return Results.Ok(item.Id);
+});
+
+app.MapGet("/api/checklist/{file}", async (string file) =>
+{
+    await using var db = new CheckDrawDbContext(dbPath);
+    var items = await db.ChecklistItems.ToListAsync();
+    var findings = await db.Findings.Where(f => f.FileName == file).ToListAsync();
+    return Results.Ok(items.Select(i => new
+    {
+        i.Code, i.Category, i.Description, severity = i.Severity.ToString(),
+        status = findings.Any(f => f.RuleId == i.Code) ? "finding" : "ok",
+        findings = findings.Where(f => f.RuleId == i.Code).Select(f => f.Description)
+    }));
 });
 
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok", db = dbPath.Contains("Host=") ? "postgres" : "sqlite" }));
