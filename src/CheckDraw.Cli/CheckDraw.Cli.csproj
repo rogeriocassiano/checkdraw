@@ -1,0 +1,16 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\CheckDraw.Engine\CheckDraw.Engine.csproj" />
+    <ProjectReference Include="..\CheckDraw.Infrastructure\CheckDraw.Infrastructure.csproj" />
+    <ProjectReference Include="..\CheckDraw.Extractors.Dxf\CheckDraw.Extractors.Dxf.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

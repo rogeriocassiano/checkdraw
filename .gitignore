@@ -1,0 +1,6 @@
+bin/
+obj/
+testdata/
+*.db
+*.db-journal
+.vs/
