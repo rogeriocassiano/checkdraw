@@ -195,6 +195,29 @@ app.MapPost("/api/checklist/instantiate", async (InstantiateReq r) =>
     return Results.Ok(new { cloned = items.Count });
 });
 
+// DWG via APS: upload → tradução SVF2 → URN para o viewer no browser
+app.MapPost("/api/aps/translate", async (HttpRequest req) =>
+{
+    var aps = new CheckDraw.Infrastructure.Aps.ApsService();
+    if (!aps.Available) return Results.BadRequest("APS_CLIENT_ID/SECRET não configurados");
+    var form = await req.ReadFormAsync();
+    var file = form.Files.FirstOrDefault();
+    if (file == null) return Results.BadRequest("arquivo obrigatório");
+    var name = Path.GetFileName(file.FileName);
+
+    await using var ms = new MemoryStream();
+    await file.CopyToAsync(ms);
+    var urn = await aps.UploadAsync("checkdraw_dwg", $"{Guid.NewGuid():N}_{name}", ms.ToArray());
+    var jobId = jobs.Enqueue(async () =>
+    {
+        await aps.TranslateAndWaitAsync(urn);
+        await using var db = new CheckDrawDbContext(dbPath);
+        var f = await db.Files.FirstOrDefaultAsync(x => x.FileName == name);
+        if (f != null) { f.StoragePath = $"aps:{urn}"; await db.SaveChangesAsync(); }
+    });
+    return Results.Ok(new { jobId, urn, name });
+});
+
 // Veredito do revisor por apontamento → status + review + feedback pair
 app.MapPost("/api/findings/{id:guid}/review", async (Guid id, ReviewReq r) =>
 {
