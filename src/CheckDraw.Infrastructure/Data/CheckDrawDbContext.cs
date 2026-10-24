@@ -19,6 +19,9 @@ public class CheckDrawDbContext : DbContext
     public DbSet<ReleaseAttempt> ReleaseAttempts => Set<ReleaseAttempt>();
     public DbSet<CheckMark> CheckMarks => Set<CheckMark>();
     public DbSet<ChecklistItem> ChecklistItems => Set<ChecklistItem>();
+    public DbSet<ChecklistTemplate> ChecklistTemplates => Set<ChecklistTemplate>();
+    public DbSet<FindingReview> FindingReviews => Set<FindingReview>();
+    public DbSet<AiFeedbackPair> AiFeedbackPairs => Set<AiFeedbackPair>();
     public DbSet<AuditEvent> AuditLog => Set<AuditEvent>();
 
     protected override void OnConfiguring(DbContextOptionsBuilder b)

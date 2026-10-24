@@ -115,6 +115,49 @@ app.MapPost("/api/transfer", async (TransferReq r) =>
     return res.Error != null ? Results.BadRequest(res.Error) : Results.Ok(res);
 });
 
+// Veredito do revisor por apontamento → status + review + feedback pair
+app.MapPost("/api/findings/{id:guid}/review", async (Guid id, ReviewReq r) =>
+{
+    await using var db = new CheckDrawDbContext(dbPath);
+    var f = await db.Findings.FindAsync(id);
+    if (f == null) return Results.NotFound();
+    f.ReviewStatus = Enum.Parse<ReviewStatus>(r.Action, true);
+    db.FindingReviews.Add(new FindingReview
+    {
+        FindingId = id, Action = r.Action.ToLowerInvariant(),
+        Comment = r.Comment, CorrectedValue = r.CorrectedValue, Reviewer = r.Reviewer
+    });
+    db.AiFeedbackPairs.Add(new AiFeedbackPair
+    {
+        FileName = f.FileName, ChecklistCode = f.RuleId,
+        AiOutput = f.Description + (f.Evidence != null ? $" ({f.Evidence})" : ""),
+        HumanAction = r.Action.ToLowerInvariant(),
+        HumanCorrection = r.CorrectedValue,
+        WasCorrect = r.Action.Equals("confirmed", StringComparison.OrdinalIgnoreCase),
+        Reviewer = r.Reviewer
+    });
+    db.AuditLog.Add(new AuditEvent { Action = "review", Detail = $"{f.RuleId} em {f.FileName}: {r.Action}", User = r.Reviewer });
+    await db.SaveChangesAsync();
+    return Results.Ok(new { f.ReviewStatus });
+});
+
+// Score de conformidade ponderado por arquivo (critical=3, warning=2, info=1)
+app.MapGet("/api/score/{file}", async (string file) =>
+{
+    await using var db = new CheckDrawDbContext(dbPath);
+    var fs = await db.Findings.Where(f => f.FileName == file).ToListAsync();
+    var open = fs.Where(f => f.ReviewStatus != ReviewStatus.Dismissed).ToList();
+    var penalty = open.Sum(f => f.Severity == FindingSeverity.Critical ? 15
+        : f.Severity == FindingSeverity.Error ? 10
+        : f.Severity == FindingSeverity.Warning ? 5 : 2);
+    return Results.Ok(new
+    {
+        file, score = Math.Max(0, 100 - penalty), total = fs.Count,
+        critical = open.Count(f => f.Severity == FindingSeverity.Critical),
+        pending = fs.Count(f => f.ReviewStatus == ReviewStatus.Open)
+    });
+});
+
 // Checklist: CRUD dos critérios + status por arquivo (ok/apontamento/pendente)
 app.MapGet("/api/checklist", async () =>
 {
@@ -148,6 +191,7 @@ app.MapGet("/api/health", () => Results.Ok(new { status = "ok", db = dbPath.Cont
 
 app.Run();
 
+record ReviewReq(string Action, string? Comment, string? CorrectedValue, string? Reviewer);
 record ImportReq(string Dir, string? Supplier);
 record ReleaseReq(string Code, string Rev, ReleasePurpose Purpose);
 record TransferReq(string Code, string From, string To);

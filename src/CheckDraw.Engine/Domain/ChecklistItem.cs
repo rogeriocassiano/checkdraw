@@ -9,6 +9,7 @@ public class ChecklistItem
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid? ContractProfileId { get; set; }
+    public Guid? ChecklistTemplateId { get; set; }
 
     /// <summary>Código estável do critério (ex.: CAR-01, REV-01, BOM-02) — casa com Finding.RuleId.</summary>
     public string Code { get; set; } = string.Empty;

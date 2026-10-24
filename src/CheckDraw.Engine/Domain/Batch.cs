@@ -36,6 +36,9 @@ public class DrawingFile
 
     /// <summary>Stem do PDF associado por nome (associação real de campos vem depois).</summary>
     public string? AssociatedPdfFile { get; set; }
+
+    /// <summary>Ciclo de vida: Pending→Analyzed→UnderReview→Approved/Rejected.</summary>
+    public DrawingLifecycle Lifecycle { get; set; } = DrawingLifecycle.Pending;
 }
 
 /// <summary>Dados de identificação extraídos do carimbo.</summary>

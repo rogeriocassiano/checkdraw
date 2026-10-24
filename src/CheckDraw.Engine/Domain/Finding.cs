@@ -36,4 +36,16 @@ public class Finding
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public string? CreatedBy { get; set; }
+
+    /// <summary>Veredito do revisor humano: Open → Confirmed/Dismissed/Corrected.</summary>
+    public ReviewStatus ReviewStatus { get; set; } = ReviewStatus.Open;
+
+    /// <summary>Região do problema no desenho (unidades do desenho ou px do scan).</summary>
+    public double? BBoxX { get; set; }
+    public double? BBoxY { get; set; }
+    public double? BBoxW { get; set; }
+    public double? BBoxH { get; set; }
+
+    /// <summary>Correção proposta (pela IA ou regra) — humano aprova antes de aplicar.</summary>
+    public string? SuggestedFix { get; set; }
 }
