@@ -18,6 +18,9 @@ var jobs = app.Services.GetRequiredService<CheckDraw.Api.JobQueue>();
 app.UseCors(c => c.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
 
 var dbPath = app.Configuration["CHECKDRAW_DB"] ?? "checkdraw-web.db";
+var supaUrl = app.Configuration["SUPABASE_URL"];   // https://<ref>.supabase.co
+var supaKey = app.Configuration["SUPABASE_KEY"];   // publishable/service key
+var storageOk = supaUrl != null && supaKey != null;
 using (var db = new CheckDrawDbContext(dbPath)) db.Database.EnsureCreated();
 IDocumentExtractor[] extractors = { new DxfExtractor(), new OdaDwgExtractor() };
 
@@ -49,13 +52,41 @@ app.MapPost("/api/upload", async (HttpRequest req) =>
     }
     var supplier = form["supplier"].FirstOrDefault() ?? "";
     var contractName = form["contract"].FirstOrDefault() ?? "Contrato padrão";
+    var fileNames = form.Files.Select(f => Path.GetFileName(f.FileName)).ToList();
     var jobId = jobs.Enqueue(async () =>
     {
         var contract = new ContractProfile { Name = contractName };
-        await new BatchImporter(extractors).ImportAsync(dir, contract,
+        var res = await new BatchImporter(extractors).ImportAsync(dir, contract,
             new List<MasterListEntry>(), dbPath, supplier);
+
+        if (storageOk)
+        {
+            using var http = new HttpClient();
+            await using var db = new CheckDrawDbContext(dbPath);
+            var batchId = res.Batch.Id.ToString("N")[..8];
+            foreach (var f in form.Files)
+            {
+                var name = Path.GetFileName(f.FileName);
+                var sp = $"{batchId}/{name}";
+                using var content = new StreamContent(File.OpenRead(Path.Combine(dir, name)));
+                content.Headers.ContentType = new("application/octet-stream");
+                var url = $"{supaUrl}/storage/v1/object/drawings/{sp}";
+                using var r = new HttpRequestMessage(HttpMethod.Post, url) { Content = content };
+                r.Headers.Add("apikey", supaKey);
+                r.Headers.Add("Authorization", $"Bearer {supaKey}");
+                r.Headers.Add("x-upsert", "true");
+                var resp = await http.SendAsync(r);
+                if (resp.IsSuccessStatusCode)
+                {
+                    var pub = $"{supaUrl}/storage/v1/object/public/drawings/{sp}";
+                    var ef = await db.Files.FirstOrDefaultAsync(x => x.FileName == name);
+                    if (ef != null) { ef.StoragePath = pub; }
+                }
+            }
+            await db.SaveChangesAsync();
+        }
     });
-    return Results.Ok(new { jobId, status = "queued" });
+    return Results.Ok(new { jobId, status = "queued", storage = storageOk });
 });
 
 app.MapGet("/api/jobs/{id:guid}", (Guid id) =>

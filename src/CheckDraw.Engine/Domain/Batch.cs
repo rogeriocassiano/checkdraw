@@ -36,6 +36,8 @@ public class DrawingFile
 
     /// <summary>Stem do PDF associado por nome (associação real de campos vem depois).</summary>
     public string? AssociatedPdfFile { get; set; }
+    /// <summary>Caminho/URL no Supabase Storage (bucket 'drawings') quando persistido na nuvem.</summary>
+    public string? StoragePath { get; set; }
 
     /// <summary>Ciclo de vida: Pending→Analyzed→UnderReview→Approved/Rejected.</summary>
     public DrawingLifecycle Lifecycle { get; set; } = DrawingLifecycle.Pending;
