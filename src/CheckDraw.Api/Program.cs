@@ -115,6 +115,55 @@ app.MapPost("/api/transfer", async (TransferReq r) =>
     return res.Error != null ? Results.BadRequest(res.Error) : Results.Ok(res);
 });
 
+// Análise de desenho por IA: imagem → findings com bbox + correção sugerida
+app.MapPost("/api/analyze", async (HttpRequest req) =>
+{
+    var ai = new CheckDraw.Infrastructure.Ai.GeminiAnalyzer();
+    if (!ai.Available) return Results.BadRequest("GEMINI_API_KEY não configurada");
+    var form = await req.ReadFormAsync();
+    var file = form.Files.GetFile("image") ?? form.Files.FirstOrDefault();
+    if (file == null) return Results.BadRequest("imagem obrigatória");
+    var fileName = form["fileName"].FirstOrDefault() ?? file.FileName;
+
+    await using var ms = new MemoryStream();
+    await file.CopyToAsync(ms);
+
+    await using var db = new CheckDrawDbContext(dbPath);
+    var items = await db.ChecklistItems.Where(i => i.AiCheckable).ToListAsync();
+    var codes = items.Select(i => i.Code).ToList();
+    var feedback = await db.AiFeedbackPairs
+        .Where(p => codes.Contains(p.ChecklistCode))
+        .OrderByDescending(p => p.CreatedAt).Take(30).ToListAsync();
+
+    var findings = await ai.AnalyzeChecklistAsync(ms.ToArray(), fileName, items, feedback);
+    db.Findings.AddRange(findings);
+    db.AuditLog.Add(new AuditEvent
+    {
+        Action = "ai-analyze", User = "gemini",
+        Detail = $"{fileName}: {findings.Count} apontamentos (checklist {items.Count} itens, {feedback.Count} feedbacks no contexto)"
+    });
+    await db.SaveChangesAsync();
+    return Results.Ok(new { fileName, findings = findings.Count });
+});
+
+// Checklist: instanciar template num contrato (copia os itens)
+app.MapPost("/api/checklist/instantiate", async (InstantiateReq r) =>
+{
+    await using var db = new CheckDrawDbContext(dbPath);
+    var items = await db.ChecklistItems
+        .Where(i => i.ChecklistTemplateId == r.TemplateId).ToListAsync();
+    foreach (var i in items)
+        db.ChecklistItems.Add(new ChecklistItem
+        {
+            ContractProfileId = r.ContractProfileId,
+            Code = i.Code, Category = i.Category, Description = i.Description,
+            Expected = i.Expected, Severity = i.Severity,
+            AiCheckable = i.AiCheckable, AiPromptHint = i.AiPromptHint
+        });
+    await db.SaveChangesAsync();
+    return Results.Ok(new { cloned = items.Count });
+});
+
 // Veredito do revisor por apontamento → status + review + feedback pair
 app.MapPost("/api/findings/{id:guid}/review", async (Guid id, ReviewReq r) =>
 {
@@ -192,6 +241,7 @@ app.MapGet("/api/health", () => Results.Ok(new { status = "ok", db = dbPath.Cont
 app.Run();
 
 record ReviewReq(string Action, string? Comment, string? CorrectedValue, string? Reviewer);
+record InstantiateReq(Guid TemplateId, Guid ContractProfileId);
 record ImportReq(string Dir, string? Supplier);
 record ReleaseReq(string Code, string Rev, ReleasePurpose Purpose);
 record TransferReq(string Code, string From, string To);
