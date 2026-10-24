@@ -4,6 +4,7 @@ using CheckDraw.Engine.Domain;
 using CheckDraw.Engine.Extraction;
 using CheckDraw.Engine.Release;
 using CheckDraw.Extractors.Dxf;
+using CheckDraw.Infrastructure.Ai;
 using CheckDraw.Infrastructure.Data;
 using CheckDraw.Infrastructure.Import;
 using CheckDraw.Infrastructure.Services;
@@ -48,6 +49,10 @@ switch (args0)
 
     case "seedmarks":
         await SeedMarks(Opt(args, "--db", "checkdraw.db"), Opt(args, "--file", ""));
+        break;
+
+    case "ai-titleblock":
+        await AiTitleBlock(Arg(args, 1, ""));
         break;
 
     default:
@@ -202,6 +207,16 @@ static async Task SeedMarks(string dbPath, string fileName)
     db.AuditLog.Add(new AuditEvent { Action = "seedmarks", Detail = $"{fileName}: {marks.Length} marcas demo", User = "demo" });
     await db.SaveChangesAsync();
     Console.WriteLine($"{marks.Length} marcas semeadas em {fileName}");
+}
+
+static async Task AiTitleBlock(string imagePath)
+{
+    var ai = new GeminiAnalyzer();
+    if (!ai.Available) { Console.WriteLine("GEMINI_API_KEY não configurada"); return; }
+    var sug = await ai.InterpretTitleBlockAsync(await File.ReadAllBytesAsync(imagePath));
+    Console.WriteLine(sug.Success
+        ? JsonSerializer.Serialize(sug, new JsonSerializerOptions { WriteIndented = true })
+        : $"ERRO: {sug.Error}");
 }
 
 static Task<DocumentRevision?> FindRevision(CheckDrawDbContext db, string code, string rev) =>

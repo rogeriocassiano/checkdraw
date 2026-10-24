@@ -4,3 +4,4 @@ testdata/
 *.db
 *.db-journal
 .vs/
+gemini.key
