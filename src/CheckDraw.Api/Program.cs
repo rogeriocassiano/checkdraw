@@ -10,7 +10,9 @@ using CheckDraw.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddCors();
 var app = builder.Build();
+app.UseCors(c => c.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
 
 var dbPath = app.Configuration["CHECKDRAW_DB"] ?? "checkdraw-web.db";
 IDocumentExtractor[] extractors = { new DxfExtractor(), new OdaDwgExtractor() };

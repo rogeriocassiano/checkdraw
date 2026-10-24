@@ -20,8 +20,12 @@ public class CheckDrawDbContext : DbContext
     public DbSet<CheckMark> CheckMarks => Set<CheckMark>();
     public DbSet<AuditEvent> AuditLog => Set<AuditEvent>();
 
-    protected override void OnConfiguring(DbContextOptionsBuilder b) =>
-        b.UseSqlite($"Data Source={_dbPath}");
+    protected override void OnConfiguring(DbContextOptionsBuilder b)
+    {
+        // Postgres quando a string contém Host= (Supabase); senão SQLite local
+        if (_dbPath.Contains("Host=")) b.UseNpgsql(_dbPath);
+        else b.UseSqlite($"Data Source={_dbPath}");
+    }
 
     protected override void OnModelCreating(ModelBuilder mb)
     {

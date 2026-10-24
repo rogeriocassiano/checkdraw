@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><title>CheckDraw — Conferência de lote</title>
+<style>
+ body{font-family:Segoe UI,sans-serif;background:#0f1117;color:#dde;margin:0}
+ header{background:#161a24;padding:14px 22px;display:flex;gap:14px;align-items:center;border-bottom:1px solid #262c3d}
+ input{background:#1c2130;border:1px solid #2c3450;color:#dde;padding:8px;border-radius:6px;min-width:320px}
+ button{background:#2563eb;border:0;color:#fff;padding:8px 16px;border-radius:6px;cursor:pointer}
+ table{width:100%;border-collapse:collapse}
+ th,td{padding:8px 12px;text-align:left;border-bottom:1px solid #232a3b;font-size:13px}
+ th{color:#8892ab;font-weight:600}
+ .score{color:#f59e0b}.Corrupt{color:#ef4444}.Ok{color:#34d399}
+ #findings td{color:#fca5a5}
+ h3{color:#9aa4bd;padding:12px 22px 0}
+</style>
+</head>
+<body>
+<header><b style="color:#60a5fa">CheckDraw</b>
+ <input id="dir" placeholder="pasta do lote no servidor (ex: testdata/corpus)">
+ <input id="api" placeholder="URL da API" style="min-width:260px" value="http://localhost:5252">
+ <button onclick="imp()">Importar lote</button><button onclick="load()">Atualizar</button>
+</header>
+<h3>Fila de conferência (por risco)</h3>
+<table><thead><tr><th>Score</th><th>Arquivo</th><th>Código</th><th>Rev</th><th>Saúde</th></tr></thead><tbody id="q"></tbody></table>
+<h3>Apontamentos</h3>
+<table id="findings"><thead><tr><th>Sev</th><th>Regra</th><th>Arquivo</th><th>Descrição</th></tr></thead><tbody id="f"></tbody></table>
+<script>
+const api=()=>document.getElementById('api').value.replace(/\/$/,'');
+async function imp(){const r=await fetch(api()+'/api/import',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({dir:dir.value})});alert(JSON.stringify(await r.json()));load()}
+async function load(){
+ q.innerHTML=(await (await fetch(api()+'/api/queue')).json()).map(x=>`<tr><td class=score>${x.score}</td><td>${x.fileName}</td><td>${x.code??''}</td><td>${x.rev??''}</td><td class=${x.health}>${x.health}</td></tr>`).join('');
+ f.innerHTML=(await (await fetch(api()+'/api/findings')).json()).map(x=>`<tr><td>${x.severity}</td><td>${x.ruleId}</td><td>${x.fileName}</td><td>${x.description}</td></tr>`).join('')}
+load();
+</script>
+</body></html>
