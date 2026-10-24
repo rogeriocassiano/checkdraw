@@ -15,6 +15,7 @@ var app = builder.Build();
 app.UseCors(c => c.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
 
 var dbPath = app.Configuration["CHECKDRAW_DB"] ?? "checkdraw-web.db";
+using (var db = new CheckDrawDbContext(dbPath)) db.Database.EnsureCreated();
 IDocumentExtractor[] extractors = { new DxfExtractor(), new OdaDwgExtractor() };
 
 app.MapPost("/api/import", async (ImportReq r) =>
