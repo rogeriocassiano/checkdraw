@@ -55,6 +55,11 @@ switch (args0)
         await AiTitleBlock(Arg(args, 1, ""));
         break;
 
+    case "ddl":
+        await using (var db = new CheckDrawDbContext(Opt(args, "--db", "checkdraw.db")))
+            Console.WriteLine(db.Database.GenerateCreateScript());
+        break;
+
     default:
         Console.WriteLine("""
             CheckDraw CLI — prova de conceito

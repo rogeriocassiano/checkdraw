@@ -32,6 +32,24 @@ app.MapPost("/api/import", async (ImportReq r) =>
     return Results.Ok(new { files = res.Batch.Files.Count, findings = res.Findings.Count, revisions = res.Revisions.Count });
 });
 
+app.MapPost("/api/upload", async (HttpRequest req) =>
+{
+    var form = await req.ReadFormAsync();
+    if (form.Files.Count == 0) return Results.BadRequest("nenhum arquivo");
+    var dir = Path.Combine(Path.GetTempPath(), "cd_" + Guid.NewGuid().ToString("N")[..8]);
+    Directory.CreateDirectory(dir);
+    foreach (var f in form.Files)
+    {
+        var path = Path.Combine(dir, Path.GetFileName(f.FileName));
+        await using var s = File.Create(path);
+        await f.CopyToAsync(s);
+    }
+    var contract = new ContractProfile { Name = form["contract"].FirstOrDefault() ?? "Contrato padrão" };
+    var res = await new BatchImporter(extractors).ImportAsync(dir, contract,
+        new List<MasterListEntry>(), dbPath, form["supplier"].FirstOrDefault() ?? "");
+    return Results.Ok(new { files = res.Batch.Files.Count, findings = res.Findings.Count, revisions = res.Revisions.Count });
+});
+
 app.MapGet("/api/queue", async () =>
 {
     await using var db = new CheckDrawDbContext(dbPath);
