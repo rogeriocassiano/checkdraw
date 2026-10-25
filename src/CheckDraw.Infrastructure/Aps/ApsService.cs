@@ -55,7 +55,8 @@ public class ApsService
         if ((int)mkResp.StatusCode != 409) mkResp.EnsureSuccessStatusCode();
 
         using var req = new HttpRequestMessage(HttpMethod.Post,
-            $"{Base}/oss/v2/buckets/{bucket}/objects/{Uri.EscapeDataString(objectName)}/signeds3upload");
+            $"{Base}/oss/v2/buckets/{bucket}/objects/{Uri.EscapeDataString(objectName)}/signeds3upload")
+        { Content = JsonContent.Create(new { minutesExpiration = 10 }) };
         req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         var signed = await req.SendAndRead<JsonElement>(_http, ct);
         var uploadKey = signed.GetProperty("uploadKey").GetString()!;
