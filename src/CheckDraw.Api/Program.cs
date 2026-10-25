@@ -212,9 +212,14 @@ app.MapPost("/api/aps/translate", async (HttpRequest req) =>
 
     // registra o arquivo no lote — aparece na fila/apontamentos
     await using var db = new CheckDrawDbContext(dbPath);
-    var batch = await db.Batches.Include(b => b.Files).OrderByDescending(b => b.ReceivedAt).FirstOrDefaultAsync()
-        ?? new Batch { Supplier = "upload" };
-    if (batch.Id == Guid.Empty) db.Batches.Add(batch);
+    var batch = await db.Batches.Include(b => b.Files).OrderByDescending(b => b.ReceivedAt).FirstOrDefaultAsync();
+    if (batch == null)
+    {
+        var cp = await db.Contracts.FirstOrDefaultAsync() ?? new ContractProfile { Name = "Padrão" };
+        if (cp.Id == Guid.Empty || !db.Contracts.Local.Any()) db.Contracts.Add(cp);
+        batch = new Batch { Supplier = "upload", Contract = cp };
+        db.Batches.Add(batch);
+    }
     var drawingFile = new DrawingFile
     {
         FileName = name, FullPath = $"aps-oss:{name}", Extension = Path.GetExtension(name),
