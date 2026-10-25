@@ -47,6 +47,9 @@
    <button onclick="upload()">Importar lote</button>
    <button class="sec" onclick="load()">Atualizar</button>
   </div>
+  <div class="drop" id="apsdrop" style="margin-top:12px;border-color:#60a5fa">☁ <b>DWG → AutoCAD na nuvem (APS)</b><br><small>clique para enviar um .dwg — o APS traduz e devolve URN do viewer</small>
+   <input id="apsfile" type="file" accept=".dwg,.dxf" hidden></div>
+  <div id="apsStatus" style="font-size:12px;color:#94a3b8;margin-top:8px"></div>
  </div>
  <div class="card">
   <h2>Fila de conferência — ordenada por risco</h2>
@@ -105,6 +108,17 @@ async function load(){
   document.getElementById('c').innerHTML=c.map(x=>`<tr><td>${x.code}</td><td>${x.category}</td><td>${x.description}${x.aiPromptHint?`<br><small style="color:#64748b">${x.aiPromptHint}</small>`:''}</td><td>${SN[x.severity]??x.severity}</td><td>${x.aiCheckable?'✓':'—'}</td></tr>`).join('');
  }catch(e){st('API offline: '+e)}
 }
+const apsd=document.getElementById('apsdrop'),apsf=document.getElementById('apsfile'),apsst=document.getElementById('apsStatus');
+apsd.onclick=()=>apsf.click();
+apsf.onchange=async()=>{
+ const f=apsf.files[0];if(!f)return;
+ apsst.textContent=`enviando ${f.name} para o APS…`;
+ const fd=new FormData();fd.append('files',f);
+ try{
+  const r=await(await fetch(API+'/api/aps/translate',{method:'POST',body:fd})).json();
+  apsst.innerHTML=r.error?`⚠ ${r.error}`:`✓ ${r.name} → URN <code>${(r.urn||'').slice(0,32)}…</code> — tradução no job ${r.jobId?.slice(0,8)} (veja /api/jobs)`;
+ }catch(e){apsst.textContent='erro: '+e}
+};
 async function rev(id,action){
  await fetch(API+`/api/findings/${id}/review`,{method:'POST',headers:{'Content-Type':'application/json'},
   body:JSON.stringify({action,reviewer:'web'})});load()}
