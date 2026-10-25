@@ -53,8 +53,19 @@
   <table><thead><tr><th>Score</th><th>Arquivo</th><th>Código</th><th>Rev</th><th>Saúde</th><th>Estado</th></tr></thead><tbody id="q"></tbody></table>
  </div>
  <div class="card">
-  <h2>Apontamentos</h2>
-  <table><thead><tr><th>Sev</th><th>Regra</th><th>Arquivo</th><th>Descrição</th><th>Fonte</th></tr></thead><tbody id="f"></tbody></table>
+  <h2>Apontamentos — revisão humana</h2>
+  <table><thead><tr><th>Sev</th><th>Regra</th><th>Arquivo</th><th>Descrição</th><th>Fonte</th><th>Status</th><th>Ação</th></tr></thead><tbody id="f"></tbody></table>
+ </div>
+ <div class="card">
+  <h2>Regras / Checklist</h2>
+  <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+   <input type="text" id="nc" placeholder="CODIGO" style="width:110px">
+   <input type="text" id="ncat" placeholder="categoria" style="width:120px">
+   <input type="text" id="nd" placeholder="descrição do critério" style="flex:1;min-width:220px">
+   <input type="text" id="nh" placeholder="dica p/ IA (opcional)" style="flex:1;min-width:180px">
+   <button class="sec" onclick="addRule()">+ Adicionar regra</button>
+  </div>
+  <table><thead><tr><th>Código</th><th>Categoria</th><th>Descrição</th><th>Sev</th><th>IA</th></tr></thead><tbody id="c"></tbody></table>
  </div>
 </main>
 <script>
@@ -82,9 +93,26 @@ async function load(){
   const q=await (await fetch(API+'/api/queue')).json();
   document.getElementById('q').innerHTML=q.map(x=>`<tr><td class=score>${x.score}</td><td>${x.fileName}</td><td>${x.code??'—'}</td><td>${x.rev??'—'}</td><td><span class="pill ${x.health==='Ok'?'ok':x.health==='Corrupt'?'corrupt':'warn'}">${x.health}</span></td><td><span class="pill sem">${x.id}</span></td></tr>`).join('')||'<tr><td colspan=6 style="color:#64748b">nenhum lote importado</td></tr>';
   const f=await (await fetch(API+'/api/findings')).json();
-  document.getElementById('f').innerHTML=f.map(x=>`<tr><td class="sev-${x.severity}">${x.severity}</td><td>${x.ruleId}</td><td>${x.fileName??''}</td><td>${x.description}</td><td>${x.source===1?'regra':'IA'}</td></tr>`).join('')||'<tr><td colspan=5 style="color:#64748b">sem apontamentos</td></tr>';
+  const SN=['Info','Alerta','Erro','Crítico'],RN=['aberto','confirmado','descartado','corrigido'];
+  document.getElementById('f').innerHTML=f.map(x=>`<tr>
+   <td class="sev-${x.severity}">${SN[x.severity]??x.severity}</td>
+   <td>${x.ruleId}</td><td>${x.fileName??''}</td><td>${x.description}${x.suggestedFix?`<br><small style="color:#60a5fa">💡 ${x.suggestedFix}</small>`:''}</td>
+   <td>${x.source===1||x.source==='Ai'?'IA':'regra'}</td>
+   <td><span class="pill ${x.reviewStatus===1?'ok':x.reviewStatus===2?'sem':'warn'}">${RN[x.reviewStatus??0]}</span></td>
+   <td>${x.reviewStatus===0?`<button class="sec" style="padding:4px 8px" onclick="rev('${x.id}','confirmed')">✓</button> <button class="sec" style="padding:4px 8px" onclick="rev('${x.id}','dismissed')">✗</button>`:''}</td>
+  </tr>`).join('')||'<tr><td colspan=7 style="color:#64748b">sem apontamentos</td></tr>';
+  const c=await (await fetch(API+'/api/checklist')).json();
+  document.getElementById('c').innerHTML=c.map(x=>`<tr><td>${x.code}</td><td>${x.category}</td><td>${x.description}${x.aiPromptHint?`<br><small style="color:#64748b">${x.aiPromptHint}</small>`:''}</td><td>${SN[x.severity]??x.severity}</td><td>${x.aiCheckable?'✓':'—'}</td></tr>`).join('');
  }catch(e){st('API offline: '+e)}
 }
+async function rev(id,action){
+ await fetch(API+`/api/findings/${id}/review`,{method:'POST',headers:{'Content-Type':'application/json'},
+  body:JSON.stringify({action,reviewer:'web'})});load()}
+async function addRule(){
+ const b={code:nc.value,category:ncat.value||'geral',description:nd.value,severity:1,aiCheckable:!!nh.value,aiPromptHint:nh.value||null};
+ if(!b.code||!b.description){alert('preencha código e descrição');return}
+ await fetch(API+'/api/checklist',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});
+ nc.value=ncat.value=nd.value=nh.value='';load()}
 load();
 </script>
 </body></html>
