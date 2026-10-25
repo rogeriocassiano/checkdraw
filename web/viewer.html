@@ -80,7 +80,8 @@ function foco(i){focus=i;
  if(findings[i].bboxX!=null)centerOn(findings[i]);else draw()}
 (async()=>{
  const q=await(await fetch(API+'/api/queue')).json().catch(()=>[]);
- const st=(src&&src!=='null')?src:(q.find(x=>x.fileName===file)||{}).storage;
+ let st=(src&&src!=='null')?src:(q.find(x=>x.fileName===file)||{}).storage;
+ if(!st)try{st=(await(await fetch(`${API}/api/files/${encodeURIComponent(file)}`)).json()).storagePath}catch(e){}
  if(st&&file?.toLowerCase().endsWith('.pdf')){
   mode='img';
   const pdf=await pdfjsLib.getDocument(st).promise;

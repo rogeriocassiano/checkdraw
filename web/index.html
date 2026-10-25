@@ -99,7 +99,7 @@ async function load(){
   const SN=['Info','Alerta','Erro','Crítico'],RN=['aberto','confirmado','descartado','corrigido'];
   document.getElementById('f').innerHTML=f.map(x=>`<tr>
    <td class="sev-${x.severity}">${SN[x.severity]??x.severity}</td>
-   <td>${x.ruleId}</td><td>${x.fileName??''}</td><td>${x.description}${x.suggestedFix?`<br><small style="color:#60a5fa">💡 ${x.suggestedFix}</small>`:''}</td>
+   <td>${x.ruleId}</td><td>${x.fileName??''} ${x.fileName?`<a href="viewer.html?file=${encodeURIComponent(x.fileName)}" style="color:#60a5fa" title="ver no desenho">🔍</a>`:''}</td><td>${x.description}${x.suggestedFix?`<br><small style="color:#60a5fa">💡 ${x.suggestedFix}</small>`:''}</td>
    <td>${x.source===1||x.source==='Ai'?'IA':'regra'}</td>
    <td><span class="pill ${x.reviewStatus===1?'ok':x.reviewStatus===2?'sem':'warn'}">${RN[x.reviewStatus??0]}</span></td>
    <td>${x.reviewStatus===0?`<button class="sec" style="padding:4px 8px" onclick="rev('${x.id}','confirmed')">✓</button> <button class="sec" style="padding:4px 8px" onclick="rev('${x.id}','dismissed')">✗</button>`:''}</td>

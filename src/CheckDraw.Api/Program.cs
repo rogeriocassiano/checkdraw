@@ -235,6 +235,15 @@ app.MapPost("/api/aps/translate", async (HttpRequest req) =>
     return Results.Ok(new { jobId, urn, name });
 });
 
+// Lookup: storage path por nome de arquivo (viewer encontra PDFs de qualquer lote)
+app.MapGet("/api/files/{name}", async (string name) =>
+{
+    await using var db = new CheckDrawDbContext(dbPath);
+    var f = await db.Files.Where(x => x.FileName == name)
+        .OrderByDescending(x => x.Id).FirstOrDefaultAsync();
+    return f == null ? Results.NotFound() : Results.Ok(new { f.FileName, f.StoragePath });
+});
+
 // Veredito do revisor por apontamento → status + review + feedback pair
 app.MapPost("/api/findings/{id:guid}/review", async (Guid id, ReviewReq r) =>
 {
