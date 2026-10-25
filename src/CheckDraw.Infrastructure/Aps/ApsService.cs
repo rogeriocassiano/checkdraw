@@ -44,6 +44,16 @@ public class ApsService
     public async Task<string> UploadAsync(string bucket, string objectName, byte[] content, CancellationToken ct = default)
     {
         var token = await TokenAsync();
+
+        // bucket precisa existir (idempotente — ignora 409 "já existe")
+        using var mk = new HttpRequestMessage(HttpMethod.Post, $"{Base}/oss/v2/buckets")
+        {
+            Content = JsonContent.Create(new { bucketKey = bucket, policyKey = "transient" })
+        };
+        mk.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        var mkResp = await _http.SendAsync(mk, ct);
+        if ((int)mkResp.StatusCode != 409) mkResp.EnsureSuccessStatusCode();
+
         using var req = new HttpRequestMessage(HttpMethod.Post,
             $"{Base}/oss/v2/buckets/{bucket}/objects/{Uri.EscapeDataString(objectName)}/signeds3upload");
         req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
