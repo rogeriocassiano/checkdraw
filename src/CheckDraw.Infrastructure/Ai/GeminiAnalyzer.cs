@@ -91,6 +91,10 @@ public class GeminiAnalyzer : IAiAnalyzer
             "expected":"valor esperado","bbox":{"x":0.0,"y":0.0,"w":0.0,"h":0.0},
             "suggested_fix":"correção sugerida ou null","confidence":0.0}]}
             bbox = região do problema na imagem, coordenadas relativas 0-1.
+            VERIFICAÇÃO OBRIGATÓRIA ADICIONAL (code="ID-FILE"): leia o número do desenho
+            no carimbo (campo DESENHO Nº) e compare com o nome do arquivo "{fileName}".
+            Se divergir, reporte achado ID-FILE severidade critical com detected=código do
+            carimbo e expected=número do nome do arquivo.
             Checklist:
             {{checklist}}{{context}}
             """;
@@ -103,6 +107,7 @@ public class GeminiAnalyzer : IAiAnalyzer
             var doc = JsonDocument.Parse(raw).RootElement;
             if (!doc.TryGetProperty("findings", out var arr)) return findings;
             var codes = itemList.Select(i => i.Code).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            codes.Add("ID-FILE");
             foreach (var f in arr.EnumerateArray())
             {
                 var code = f.GetProperty("code").GetString() ?? "";
