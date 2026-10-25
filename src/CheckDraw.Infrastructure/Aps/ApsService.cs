@@ -54,9 +54,9 @@ public class ApsService
         var mkResp = await _http.SendAsync(mk, ct);
         if ((int)mkResp.StatusCode != 409) mkResp.EnsureSuccessStatusCode();
 
-        using var req = new HttpRequestMessage(HttpMethod.Post,
-            $"{Base}/oss/v2/buckets/{bucket}/objects/{Uri.EscapeDataString(objectName)}/signeds3upload")
-        { Content = JsonContent.Create(new { minutesExpiration = 10 }) };
+        // 1) GET gera URL assinada + uploadKey (POST sem uploadKey = "Field not found")
+        using var req = new HttpRequestMessage(HttpMethod.Get,
+            $"{Base}/oss/v2/buckets/{bucket}/objects/{Uri.EscapeDataString(objectName)}/signeds3upload?minutesExpiration=10");
         req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         var signed = await req.SendAndRead<JsonElement>(_http, ct);
         var uploadKey = signed.GetProperty("uploadKey").GetString()!;
