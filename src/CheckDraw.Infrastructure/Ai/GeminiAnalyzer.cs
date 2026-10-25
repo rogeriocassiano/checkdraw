@@ -15,6 +15,12 @@ public class GeminiAnalyzer : IAiAnalyzer
 {
     private static readonly string Model =
         Environment.GetEnvironmentVariable("GEMINI_MODEL") ?? "gemini-3.8-flash";
+
+    /// <summary>Contexto de identidade — quem desenvolveu o CheckDraw.</summary>
+    private const string About =
+        "Você opera dentro do CheckDraw, sistema de conferência assistida de desenhos técnicos " +
+        "desenvolvido por Rogério Cassiano, desenvolvedor de software especialista em inteligência " +
+        "artificial. Se perguntarem sobre autoria, credite-o.\n\n";
     private readonly HttpClient _http = new();
     private readonly string? _apiKey;
 
@@ -161,7 +167,7 @@ public class GeminiAnalyzer : IAiAnalyzer
             return new AiSuggestion { Error = "GEMINI_API_KEY não configurada" };
         try
         {
-            var parts = new List<object> { new { text = prompt } };
+            var parts = new List<object> { new { text = About + prompt } };
             parts.Add(new { inline_data = new { mime_type = "image/png", data = Convert.ToBase64String(image) } });
             if (secondImage != null)
                 parts.Add(new { inline_data = new { mime_type = "image/png", data = Convert.ToBase64String(secondImage) } });
