@@ -1,28 +1,31 @@
 <!DOCTYPE html>
 <html lang="pt-BR"><head><meta charset="utf-8"><title>CheckDraw — Desenho</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
 body{margin:0;background:#0b0e15;color:#e2e8f0;font-family:'Segoe UI',sans-serif;display:flex;height:100vh}
-#cv{flex:1;background:#fdfdf8;cursor:grab}
-#side{width:300px;background:#111827;border-left:1px solid #1f2937;padding:16px;overflow-y:auto}
+#cv{flex:1;background:#2b2b2b;cursor:grab}
+#side{width:320px;background:#111827;border-left:1px solid #1f2937;padding:16px;overflow-y:auto}
 h3{font-size:13px;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px}
 .fi{padding:8px;border-radius:8px;margin-bottom:6px;font-size:12px;background:#1f2937;cursor:pointer}
-.fi:hover{background:#2c3a52}.fi .s{float:right}
+.fi:hover{background:#2c3a52}.fi.on{outline:2px solid #f59e0b}
 .E,.C{color:#f87171}.W{color:#fbbf24}.I{color:#60a5fa}
-#tools{position:fixed;top:12px;right:316px;display:flex;gap:6px}
+#tools{position:fixed;top:12px;right:336px;display:flex;gap:6px}
 #tools button{background:#1f2937;border:1px solid #374151;color:#e2e8f0;width:34px;height:34px;border-radius:8px;font-size:16px;cursor:pointer}
 </style></head><body>
 <div id="tools"><button onclick="z(1.25)">+</button><button onclick="z(0.8)">−</button><button onclick="fit()">⊡</button></div>
 <canvas id="cv"></canvas>
-<div id="side"><h3 id="t">Desenho</h3><div id="st" style="font-size:12px;color:#64748b;margin-bottom:14px"></div><h3>Apontamentos</h3><div id="fl"></div></div>
+<div id="side"><h3 id="t">Desenho</h3><div id="st" style="font-size:12px;color:#64748b;margin-bottom:14px"></div><h3>Apontamentos — clique p/ localizar</h3><div id="fl"></div></div>
 <script>
 const P=new URLSearchParams(location.search),API='https://checkdraw-production.up.railway.app';
 const cv=document.getElementById('cv'),ctx=cv.getContext('2d');
-let ents=[],marks=[],vx=0,vy=0,sc=1;
+let ents=[],marks=[],findings=[],vx=0,vy=0,sc=1,focus=-1,img=null,imgW=1,imgH=1,mode='dxf';
 const file=P.get('file'),src=P.get('src');
 document.getElementById('t').textContent=file||'desenho';
-function parseDxf(t){ // parser mínimo: LINE/LWPOLYLINE/CIRCLE/TEXT/ATTRIB
+pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+const SEVC=['#60a5fa','#fbbf24','#f87171','#ef4444'];
+
+function parseDxf(t){
  const L=t.split(/\r?\n/).map(s=>s.trim()),E=[];let i=0;
- const pair=()=>[+L[i++],L[i++]];
  while(i<L.length-1){if(L[i]!=='ENTITIES'){i++;continue}i+=2;break}
  while(i<L.length-1){if(L[i]!=='0'){i++;continue}
   const t=L[i+1],e={t};i+=2;
@@ -30,36 +33,67 @@ function parseDxf(t){ // parser mínimo: LINE/LWPOLYLINE/CIRCLE/TEXT/ATTRIB
   E.push(e)}
  return E}
 const num=(e,c,k=0)=>parseFloat((e[c]||[])[k]||0),txt=(e,c)=>((e[c]||[])[0]||'');
+
 function draw(){
  cv.width=cv.clientWidth;cv.height=cv.clientHeight;
- ctx.setTransform(sc,0,0,-sc,vx,vy);ctx.clearRect(-vx/sc,-vy/sc,cv.width/sc,cv.height/sc);
- ctx.lineWidth=1/sc;ctx.strokeStyle='#334';ctx.fillStyle='#334';ctx.font='10px sans-serif';
- for(const e of ents){
-  if(e.t==='LINE'){ctx.beginPath();ctx.moveTo(num(e,10),num(e,20));ctx.lineTo(num(e,11),num(e,21));ctx.stroke()}
-  if(e.t==='LWPOLYLINE'||e.t==='POLYLINE'){ctx.beginPath();(e[10]||[]).forEach((x,j)=>{const y=num(e,20,j);j?ctx.lineTo(+x,y):ctx.moveTo(+x,y)});if(e[70]==='1')ctx.closePath();ctx.stroke()}
-  if(e.t==='CIRCLE'){ctx.beginPath();ctx.arc(num(e,10),num(e,20),num(e,40),0,7);ctx.stroke()}
-  if(e.t==='TEXT'||e.t==='ATTRIB')ctx.fillText(txt(e,1),num(e,10),num(e,20))}
- for(const m of marks){
-  const c={1:'#facc15',2:'#ef4444',3:'#fb923c',4:'#22c55e'}[m.state]||'#facc15';
-  ctx.fillStyle=c+'55';ctx.strokeStyle=c;ctx.lineWidth=1.5/sc;
-  ctx.fillRect(m.x,m.y,m.w,m.h);ctx.strokeRect(m.x,m.y,m.w,m.h)}
- // bbox dos findings (relativo 0-1 → px do desenho em coordenadas da imagem)
+ ctx.clearRect(0,0,cv.width,cv.height);
+ if(mode==='img'){
+  ctx.setTransform(sc,0,0,sc,vx,vy);
+  if(img)ctx.drawImage(img,0,0);
+  ctx.lineWidth=3/sc;
+  marks.forEach(m=>{const c={1:'#facc15',2:'#ef4444',3:'#fb923c',4:'#22c55e'}[m.state]||'#facc15';
+   ctx.fillStyle=c+'44';ctx.strokeStyle=c;ctx.fillRect(m.x,m.y,m.w,m.h);ctx.strokeRect(m.x,m.y,m.w,m.h)});
+  findings.forEach((f,i)=>{if(f.bboxX==null)return;
+   const c=SEVC[f.severity]||'#fbbf24',x=f.bboxX*imgW,y=f.bboxY*imgH,w=f.bboxW*imgW,h=f.bboxH*imgH;
+   ctx.lineWidth=(i===focus?5:2.5)/sc;ctx.strokeStyle=c;
+   ctx.strokeRect(x,y,w,h);
+   if(i===focus){ctx.fillStyle=c+'33';ctx.fillRect(x,y,w,h)}});
+ } else {
+  ctx.setTransform(sc,0,0,-sc,vx,vy);
+  ctx.lineWidth=1/sc;ctx.strokeStyle='#e8e8e8';ctx.fillStyle='#e8e8e8';ctx.font='10px sans-serif';
+  for(const e of ents){
+   if(e.t==='LINE'){ctx.beginPath();ctx.moveTo(num(e,10),num(e,20));ctx.lineTo(num(e,11),num(e,21));ctx.stroke()}
+   if(e.t==='LWPOLYLINE'||e.t==='POLYLINE'){ctx.beginPath();(e[10]||[]).forEach((x,j)=>{const y=num(e,20,j);j?ctx.lineTo(+x,y):ctx.moveTo(+x,y)});if(e[70]==='1')ctx.closePath();ctx.stroke()}
+   if(e.t==='CIRCLE'){ctx.beginPath();ctx.arc(num(e,10),num(e,20),num(e,40),0,7);ctx.stroke()}
+   if(e.t==='TEXT'||e.t==='ATTRIB'){ctx.save();ctx.scale(1,-1);ctx.fillText(txt(e,1),num(e,10),-num(e,20));ctx.restore()}}
+  marks.forEach(m=>{const c={1:'#facc15',2:'#ef4444',3:'#fb923c',4:'#22c55e'}[m.state]||'#facc15';
+   ctx.fillStyle=c+'55';ctx.strokeStyle=c;ctx.lineWidth=1.5/sc;ctx.fillRect(m.x,m.y,m.w,m.h);ctx.strokeRect(m.x,m.y,m.w,m.h)});
+ }
 }
-function fit(){if(!ents.length)return;
- const xs=[],ys=[];for(const e of ents)for(const c of[10,11]){if(e[c])xs.push(...e[c].map(Number))}for(const e of ents)for(const c of[20,21]){if(e[c])ys.push(...e[c].map(Number))}
- const x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys);
- sc=Math.min(cv.clientWidth/(x1-x0+40),cv.clientHeight/(y1-y0+40));vx=-x0*sc+20*sc;vy=cv.clientHeight+y0*sc-20*sc;draw()}
+function bounds(){return mode==='img'?{x0:0,y0:0,x1:imgW,y1:imgH}:(()=>{
+ const xs=[],ys=[];ents.forEach(e=>{[10,11].forEach(c=>e[c]&&xs.push(...e[c].map(Number)));[20,21].forEach(c=>e[c]&&ys.push(...e[c].map(Number)))});
+ return xs.length?{x0:Math.min(...xs),x1:Math.max(...xs),y0:Math.min(...ys),y1:Math.max(...ys)}:{x0:0,x1:1,y0:0,y1:1}})()}
+function fit(){const b=bounds();
+ sc=Math.min(cv.clientWidth/(b.x1-b.x0+40),cv.clientHeight/(b.y1-b.y0+40));
+ if(mode==='img'){vx=(cv.clientWidth-(b.x1-b.x0)*sc)/2;vy=(cv.clientHeight-(b.y1-b.y0)*sc)/2}
+ else{vx=-b.x0*sc+20*sc;vy=cv.clientHeight+b.y0*sc-20*sc}
+ draw()}
+function centerOn(f){const x=(f.bboxX+f.bboxW/2)*imgW,y=(f.bboxY+f.bboxH/2)*imgH;
+ vx=cv.clientWidth/2-x*sc;vy=cv.clientHeight/2-y*sc;draw()}
 function z(f){sc*=f;draw()}
 let drag=null;
 cv.onmousedown=e=>{drag={x:e.offsetX,y:e.offsetY}};
 cv.onmousemove=e=>{if(drag){vx+=e.offsetX-drag.x;vy+=e.offsetY-drag.y;drag={x:e.offsetX,y:e.offsetY};draw()}};
 cv.onmouseup=()=>drag=null;cv.onwheel=e=>{e.preventDefault();z(e.deltaY<0?1.1:0.9)};
+function foco(i){focus=i;
+ document.querySelectorAll('.fi').forEach((el,j)=>el.classList.toggle('on',j===i));
+ if(findings[i].bboxX!=null)centerOn(findings[i]);else draw()}
 (async()=>{
- if(src&&file?.endsWith('.dxf')){ents=parseDxf(await(await fetch(src)).text());fit()}
+ const q=await(await fetch(API+'/api/queue')).json().catch(()=>[]);
+ const st=(src&&src!=='null')?src:(q.find(x=>x.fileName===file)||{}).storage;
+ if(st&&file?.toLowerCase().endsWith('.pdf')){
+  mode='img';
+  const pdf=await pdfjsLib.getDocument(st).promise;
+  const pg=await pdf.getPage(1),vp=pg.getViewport({scale:2});
+  const c2=document.createElement('canvas');c2.width=vp.width;c2.height=vp.height;
+  await pg.render({canvasContext:c2.getContext('2d'),viewport:vp}).promise;
+  img=c2;imgW=vp.width;imgH=vp.height;fit()
+ }else if(st&&file?.toLowerCase().endsWith('.dxf')){ents=parseDxf(await(await fetch(st)).text());fit()}
  marks=file?await(await fetch(`${API}/api/marks/${encodeURIComponent(file)}`)).json().catch(()=>[]):[];
- if(marks.length){marks=marks.map(m=>({x:m.x,y:m.y,w:m.w,h:m.h,state:m.state}));draw()}
- const fs=await(await fetch(`${API}/api/findings`)).json().catch(()=>[]);
- document.getElementById('fl').innerHTML=fs.filter(f=>f.fileName===file).map(f=>`<div class="fi"><span class="s ${(f.severity||'I')[0]}">${f.severity}</span><b>${f.ruleId}</b><br>${f.description}${f.suggestedFix?`<br><i style="color:#60a5fa">💡 ${f.suggestedFix}</i>`:''}</div>`).join('')||'<div class="fi">sem apontamentos</div>';
- document.getElementById('st').textContent=`${ents.length} entidades · ${marks.length} marcas`;
+ findings=await(await fetch(`${API}/api/findings`)).json().catch(()=>[]);
+ findings=findings.filter(f=>f.fileName===file);
+ draw();
+ document.getElementById('fl').innerHTML=findings.map((f,i)=>`<div class="fi" onclick="foco(${i})"><span class="s ${(f.severity||'I')[0]}">${f.severity}</span><b>${f.ruleId}</b> <span style="color:#64748b">[${['aberto','✓','✗','✓corr'][f.reviewStatus??0]}]</span><br>${f.description}${f.suggestedFix?`<br><i style="color:#60a5fa">💡 ${f.suggestedFix}</i>`:''}</div>`).join('')||'<div class="fi">sem apontamentos</div>';
+ document.getElementById('st').textContent=`${ents.length||''} entidades · ${marks.length} marcas · ${findings.length} achados`;
 })();
 </script></body></html>
