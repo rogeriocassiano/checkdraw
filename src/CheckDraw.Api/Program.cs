@@ -168,6 +168,21 @@ app.MapPost("/api/analyze", async (HttpRequest req) =>
         .OrderByDescending(p => p.CreatedAt).Take(30).ToListAsync();
 
     var findings = await ai.AnalyzeChecklistAsync(ms.ToArray(), fileName, items, feedback);
+
+    // ID-FILE determinístico: número do arquivo DEVE ser idêntico ao carimbo
+    var expected = System.Text.RegularExpressions.Regex
+        .Match(fileName, @"^(.*?)(?:\s*-DC|\s*-.*|\..*)?$").Groups[1].Value;
+    var carimbo = ai.CarimboCode;
+    if (!string.IsNullOrEmpty(carimbo) &&
+        !string.Equals(expected.Trim(), carimbo.Trim(), StringComparison.OrdinalIgnoreCase))
+        findings.Add(new Finding
+        {
+            RuleId = "ID-FILE", FileName = fileName,
+            Description = $"Código do carimbo '{carimbo}' diverge do nome do arquivo '{expected}' — possível arquivo com nome errado",
+            Evidence = $"detectado: {carimbo}", Severity = FindingSeverity.Critical,
+            Source = FindingSource.Rule, Kind = FindingKind.Objective
+        });
+
     db.Findings.AddRange(findings);
     db.AuditLog.Add(new AuditEvent
     {

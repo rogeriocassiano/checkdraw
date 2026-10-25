@@ -32,6 +32,9 @@ public class GeminiAnalyzer : IAiAnalyzer
 
     public bool Available => _apiKey != null;
 
+    /// <summary>Código DESENHO Nº lido no carimbo na última análise de checklist.</summary>
+    public string? CarimboCode { get; private set; }
+
     public async Task<AiSuggestion> InterpretTitleBlockAsync(byte[] imageOrSnippet, CancellationToken ct = default)
     {
         const string prompt = """
@@ -86,15 +89,14 @@ public class GeminiAnalyzer : IAiAnalyzer
             que seja. Trate também como achado qualquer marcação manual de correção no
             desenho (anotações a vermelho, rabiscos, nuvens de revisão) — elas indicam
             pendências do conferente. Responda SOMENTE JSON:
-            {"summary":"...","findings":[{"code":"CODIGO","severity":"info|warning|critical",
+            {"summary":"...","carimbo_code":"número do desenho lido no carimbo (DESENHO Nº), exato, ou null","findings":[{"code":"CODIGO","severity":"info|warning|critical",
             "description":"problema encontrado","detected":"valor encontrado ou null",
             "expected":"valor esperado","bbox":{"x":0.0,"y":0.0,"w":0.0,"h":0.0},
             "suggested_fix":"correção sugerida ou null","confidence":0.0}]}
             bbox = região do problema na imagem, coordenadas relativas 0-1.
-            VERIFICAÇÃO OBRIGATÓRIA ADICIONAL (code="ID-FILE"): leia o número do desenho
-            no carimbo (campo DESENHO Nº) e compare com o nome do arquivo "{fileName}".
-            Se divergir, reporte achado ID-FILE severidade critical com detected=código do
-            carimbo e expected=número do nome do arquivo.
+            Obrigatório: reporte carimbo_code com o número DESENHO Nº lido no carimbo,
+            EXATO como está escrito (ou null se ilegível). Não compare com o nome do
+            arquivo — isso é feito deterministicamente fora da IA.
             Checklist:
             {{checklist}}{{context}}
             """;
@@ -105,9 +107,10 @@ public class GeminiAnalyzer : IAiAnalyzer
         try
         {
             var doc = JsonDocument.Parse(raw).RootElement;
+            if (doc.TryGetProperty("carimbo_code", out var cc) && cc.ValueKind == JsonValueKind.String)
+                CarimboCode = cc.GetString();
             if (!doc.TryGetProperty("findings", out var arr)) return findings;
             var codes = itemList.Select(i => i.Code).ToHashSet(StringComparer.OrdinalIgnoreCase);
-            codes.Add("ID-FILE");
             foreach (var f in arr.EnumerateArray())
             {
                 var code = f.GetProperty("code").GetString() ?? "";
