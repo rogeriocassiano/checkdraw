@@ -62,8 +62,9 @@ public class ApsService
         var uploadKey = signed.GetProperty("uploadKey").GetString()!;
         var signedUrl = signed.GetProperty("urls")[0].GetString()!;
 
+        // 2) PUT bytes no S3 — resposta é 204 vazia, não JSON
         using var put = new HttpRequestMessage(HttpMethod.Put, signedUrl) { Content = new ByteArrayContent(content) };
-        await put.SendAndRead<JsonElement>(_http, ct);
+        (await _http.SendAsync(put, ct)).EnsureSuccessStatusCode();
 
         using var fin = new HttpRequestMessage(HttpMethod.Post,
             $"{Base}/oss/v2/buckets/{bucket}/objects/{Uri.EscapeDataString(objectName)}/signeds3upload")
