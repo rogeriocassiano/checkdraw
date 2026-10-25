@@ -81,8 +81,11 @@ public class GeminiAnalyzer : IAiAnalyzer
 
         var prompt = $$"""
             Você é um verificador de desenhos técnicos. Analise a imagem contra o checklist.
-            REGRAS: nunca aprove/reprove — só aponte. Confiança honesta. Se não conseguir
-            verificar um item, não o inclua. Responda SOMENTE JSON:
+            REGRAS: nunca aprove/reprove — só aponte. Confiança honesta.
+            Avalie TODOS os itens do checklist e reporte TODA não-conformidade, por menor
+            que seja. Trate também como achado qualquer marcação manual de correção no
+            desenho (anotações a vermelho, rabiscos, nuvens de revisão) — elas indicam
+            pendências do conferente. Responda SOMENTE JSON:
             {"summary":"...","findings":[{"code":"CODIGO","severity":"info|warning|critical",
             "description":"problema encontrado","detected":"valor encontrado ou null",
             "expected":"valor esperado","bbox":{"x":0.0,"y":0.0,"w":0.0,"h":0.0},
