@@ -104,7 +104,8 @@ app.MapGet("/api/queue", async () =>
     return Results.Ok(RiskScorer.OrderQueue(batch, findings).Select(x => new
     {
         x.File.FileName, code = x.File.Identity.Code, rev = x.File.Identity.Revision,
-        health = x.File.Health.ToString(), id = x.File.Identity.Status.ToString(), x.Score
+        health = x.File.Health.ToString(), id = x.File.Identity.Status.ToString(), x.Score,
+        storage = x.File.StoragePath
     }));
 });
 

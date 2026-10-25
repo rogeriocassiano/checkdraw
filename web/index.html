@@ -91,7 +91,7 @@ async function upload(){
 async function load(){
  try{
   const q=await (await fetch(API+'/api/queue')).json();
-  document.getElementById('q').innerHTML=q.map(x=>`<tr><td class=score>${x.score}</td><td>${x.fileName}</td><td>${x.code??'—'}</td><td>${x.rev??'—'}</td><td><span class="pill ${x.health==='Ok'?'ok':x.health==='Corrupt'?'corrupt':'warn'}">${x.health}</span></td><td><span class="pill sem">${x.id}</span></td></tr>`).join('')||'<tr><td colspan=6 style="color:#64748b">nenhum lote importado</td></tr>';
+  document.getElementById('q').innerHTML=q.map(x=>`<tr><td class=score>${x.score}</td><td>${x.fileName}</td><td>${x.code??'—'}</td><td>${x.rev??'—'}</td><td><span class="pill ${x.health==='Ok'?'ok':x.health==='Corrupt'?'corrupt':'warn'}">${x.health}</span></td><td><span class="pill sem">${x.id}</span></td><td>${x.storage?`<a href="viewer.html?file=${encodeURIComponent(x.fileName)}&src=${encodeURIComponent(x.storage)}" style="color:#60a5fa">👁</a>`:''}</td></tr>`).join('')||'<tr><td colspan=6 style="color:#64748b">nenhum lote importado</td></tr>';
   const f=await (await fetch(API+'/api/findings')).json();
   const SN=['Info','Alerta','Erro','Crítico'],RN=['aberto','confirmado','descartado','corrigido'];
   document.getElementById('f').innerHTML=f.map(x=>`<tr>

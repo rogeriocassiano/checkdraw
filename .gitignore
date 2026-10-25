@@ -5,3 +5,4 @@ testdata/
 *.db-journal
 .vs/
 gemini.key
+publish/
