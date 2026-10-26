@@ -23,6 +23,7 @@ public class CheckDrawDbContext : DbContext
     public DbSet<FindingReview> FindingReviews => Set<FindingReview>();
     public DbSet<AiFeedbackPair> AiFeedbackPairs => Set<AiFeedbackPair>();
     public DbSet<AuditEvent> AuditLog => Set<AuditEvent>();
+    public DbSet<DrawingLink> DrawingLinks => Set<DrawingLink>();
 
     protected override void OnConfiguring(DbContextOptionsBuilder b)
     {

@@ -211,6 +211,55 @@ app.MapPost("/api/checklist/instantiate", async (InstantiateReq r) =>
     return Results.Ok(new { cloned = items.Count });
 });
 
+// Cruzamento conjunto→detalhe: lê quadro de aplicação do conjunto vetorial,
+// casa os códigos de detalhe com os arquivos importados e grava DrawingLinks
+app.MapPost("/api/crosscheck/{file}", async (string file) =>
+{
+    await using var db = new CheckDrawDbContext(dbPath);
+    var f = await db.Files.FirstOrDefaultAsync(x => x.FileName == file);
+    if (f?.StoragePath == null || f.StoragePath.StartsWith("aps:"))
+        return Results.BadRequest("arquivo sem storage acessível");
+
+    var bytes = await new HttpClient().GetByteArrayAsync(f.StoragePath);
+    var tmp = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".pdf");
+    await File.WriteAllBytesAsync(tmp, bytes);
+
+    var ext = new CheckDraw.Infrastructure.Pdf.VectorPdfExtractor().Extract(tmp);
+    File.Delete(tmp);
+    if (!ext.Success) return Results.BadRequest($"não-vetorial: {ext.Error}");
+
+    var links = new CheckDraw.Infrastructure.CrossCheck.CrossCheckService()
+        .DiscoverLinks(ext, file);
+    foreach (var l in links)
+    {
+        var det = await db.Files.FirstOrDefaultAsync(x =>
+            x.FileName.Contains(l.DetailCode));
+        l.DetailFileName = det?.FileName;
+        l.Status = det == null ? "missing" : "proposed";
+    }
+    db.DrawingLinks.AddRange(links);
+    db.AuditLog.Add(new AuditEvent
+    {
+        Action = "crosscheck", User = "system",
+        Detail = $"{file}: {links.Count} vínculos, {links.Count(l => l.Status == "missing")} sem arquivo"
+    });
+    await db.SaveChangesAsync();
+    return Results.Ok(new
+    {
+        file, vectors = ext.Geometry.Count, texts = ext.Texts.Count,
+        links = links.Count, missing = links.Count(l => l.Status == "missing"),
+        sample = links.Take(8)
+    });
+});
+
+app.MapGet("/api/links/{file}", async (string file) =>
+{
+    await using var db = new CheckDrawDbContext(dbPath);
+    return Results.Ok(await db.DrawingLinks
+        .Where(l => l.AssemblyFile == file)
+        .OrderBy(l => l.Marca).ToListAsync());
+});
+
 // DWG via APS: upload → tradução SVF2 → URN para o viewer no browser
 app.MapPost("/api/aps/translate", async (HttpRequest req) =>
 {
