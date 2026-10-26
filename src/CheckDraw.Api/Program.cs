@@ -193,6 +193,19 @@ app.MapPost("/api/analyze", async (HttpRequest req) =>
     return Results.Ok(new { fileName, findings = findings.Count });
 });
 
+// Limpeza: remove achados de IA ainda não revisados (reanálise limpa,
+// preserva vereditos humanos confirmados/descartados/corrigidos)
+app.MapPost("/api/findings/purge-open-ai", async () =>
+{
+    await using var db = new CheckDrawDbContext(dbPath);
+    var open = await db.Findings
+        .Where(f => f.Source == FindingSource.Ai && f.ReviewStatus == ReviewStatus.Open)
+        .ToListAsync();
+    db.Findings.RemoveRange(open);
+    await db.SaveChangesAsync();
+    return Results.Ok(new { removed = open.Count });
+});
+
 // Checklist: instanciar template num contrato (copia os itens)
 app.MapPost("/api/checklist/instantiate", async (InstantiateReq r) =>
 {
