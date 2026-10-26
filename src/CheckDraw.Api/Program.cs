@@ -322,6 +322,56 @@ app.MapPost("/api/crosscompare/{assembly}/{detail}", async (string assembly, str
     return Results.Ok(new { assembly, detail, marca, itemFound = cmp.Value.GetProperty("item_found").GetBoolean(), comparisons = created });
 });
 
+// Cruzamento em lote: todos os detalhes vinculados do conjunto, em background
+app.MapPost("/api/crosscompare-all/{assembly}", (string assembly) =>
+{
+    var jobId = jobs.Enqueue(async () =>
+    {
+        var ai = new CheckDraw.Infrastructure.Ai.GeminiAnalyzer();
+        if (!ai.Available) throw new InvalidOperationException("GEMINI_API_KEY ausente");
+        await using var db = new CheckDrawDbContext(dbPath);
+        var fa = await db.Files.FirstOrDefaultAsync(x => x.FileName == assembly);
+        if (fa?.StoragePath == null) throw new InvalidOperationException("conjunto sem storage");
+        var links = await db.DrawingLinks
+            .Where(l => l.AssemblyFile == assembly && l.DetailFileName != null).ToListAsync();
+        using var http = new HttpClient();
+        var a = await http.GetByteArrayAsync(fa.StoragePath);
+
+        var done = 0;
+        foreach (var l in links)
+        {
+            var fd = await db.Files.FirstOrDefaultAsync(x => x.FileName == l.DetailFileName);
+            if (fd?.StoragePath == null) continue;
+            var d = await http.GetByteArrayAsync(fd.StoragePath);
+            var cmp = await ai.CompareDrawingsAsync(a, d, l.Marca);
+            if (cmp == null || !cmp.Value.TryGetProperty("comparisons", out var arr)) continue;
+            foreach (var c in arr.EnumerateArray())
+            {
+                var res = c.GetProperty("result").GetString() ?? "insufficient";
+                db.Findings.Add(new Finding
+                {
+                    RuleId = $"XCHK-{l.Marca}",
+                    FileName = $"{assembly} ↔ {fd.FileName}",
+                    Description = $"{c.GetProperty("characteristic").GetString()}: conjunto '{c.GetProperty("assembly").GetString()}' vs detalhe '{c.GetProperty("detail").GetString()}'",
+                    Evidence = c.GetProperty("evidence").GetString() ?? "",
+                    Severity = res == "mismatch" ? FindingSeverity.Critical
+                             : res == "insufficient" ? FindingSeverity.Warning : FindingSeverity.Info,
+                    Source = FindingSource.Ai, Kind = FindingKind.Suspicion,
+                    Confidence = res == "match" ? 0.9 : 0.7
+                });
+            }
+            done++;
+        }
+        db.AuditLog.Add(new AuditEvent
+        {
+            Action = "crosscompare-all", User = "gemini",
+            Detail = $"{assembly}: {done} pares comparados de {links.Count} vinculados"
+        });
+        await db.SaveChangesAsync();
+    });
+    return Results.Ok(new { jobId, assembly, status = "queued" });
+});
+
 app.MapGet("/api/links/{file}", async (string file) =>
 {
     await using var db = new CheckDrawDbContext(dbPath);
