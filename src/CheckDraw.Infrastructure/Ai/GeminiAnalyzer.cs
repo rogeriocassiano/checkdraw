@@ -177,6 +177,55 @@ public class GeminiAnalyzer : IAiAnalyzer
         return links;
     }
 
+    /// <summary>
+    /// Compara conjunto × detalhe: quantidades, cotas de interface, fixadores,
+    /// materiais. Cada achado traz valor no conjunto, valor no detalhe, evidência
+    /// e resultado match|mismatch|insufficient — nunca aprovação automática.
+    /// </summary>
+    public async Task<JsonElement?> CompareDrawingsAsync(
+        byte[] assemblyPdf, byte[] detailPdf, string marca, CancellationToken ct = default)
+    {
+        var prompt = $$"""
+            Você é um conferente cruzado: o PRIMEIRO PDF é o desenho de conjunto
+            (arranjo/isométrico) e o SEGUNDO é o desenho de detalhe da marca "{{marca}}".
+            Compare a MESMA peça nas duas folhas: quantidades, diâmetros/DN, cotas de
+            interface (furos, entre-eixos, espessuras), fixadores, materiais e
+            especificações declaradas. Se não achar a marca/item, diga.
+            Responda SOMENTE JSON:
+            {"item_found":true,"comparisons":[
+             {"characteristic":"qtd de furos","assembly":"4 furos Ø18 entre-eixos 120",
+              "detail":"4 furos Ø18 entre-eixos 110","unit":"mm",
+              "result":"match|mismatch|insufficient","evidence":"onde está em cada folha"}]}
+            insufficient = dado ausente/ilegível — nunca force match nem mismatch.
+            """;
+        var raw = await CallRawTwoAsync(prompt, assemblyPdf, detailPdf, ct);
+        if (raw == null) return null;
+        try { return JsonDocument.Parse(raw).RootElement.Clone(); } catch { return null; }
+    }
+
+    private async Task<string?> CallRawTwoAsync(string prompt, byte[] a, byte[] b, CancellationToken ct)
+    {
+        if (!Available) return null;
+        try
+        {
+            var parts = new object[]
+            {
+                new { text = About + prompt },
+                new { inline_data = new { mime_type = "application/pdf", data = Convert.ToBase64String(a) } },
+                new { inline_data = new { mime_type = "application/pdf", data = Convert.ToBase64String(b) } }
+            };
+            var body = new { contents = new[] { new { parts } },
+                             generationConfig = new { responseMimeType = "application/json" } };
+            var url = $"https://generativelanguage.googleapis.com/v1beta/models/{Model}:generateContent?key={_apiKey}";
+            using var resp = await _http.PostAsJsonAsync(url, body, ct);
+            if (!resp.IsSuccessStatusCode) return null;
+            return JsonDocument.Parse(await resp.Content.ReadAsStringAsync(ct))
+                .RootElement.GetProperty("candidates")[0].GetProperty("content")
+                .GetProperty("parts")[0].GetProperty("text").GetString();
+        }
+        catch { return null; }
+    }
+
     /// <summary>Chamada crua: devolve o texto JSON do modelo (ou null em erro).</summary>
     private async Task<string?> CallRawAsync(string prompt, byte[] image, CancellationToken ct, string mimeType = "image/png")
     {

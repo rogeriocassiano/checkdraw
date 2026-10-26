@@ -270,6 +270,56 @@ app.MapPost("/api/crosscheck/{file}", async (string file) =>
     });
 });
 
+// RF-02..05: comparação conjunto×detalhe por link — achados com evidência nas 2 folhas
+app.MapPost("/api/crosscompare/{assembly}/{detail}", async (string assembly, string detail) =>
+{
+    var ai = new CheckDraw.Infrastructure.Ai.GeminiAnalyzer();
+    if (!ai.Available) return Results.BadRequest("GEMINI_API_KEY não configurada");
+    await using var db = new CheckDrawDbContext(dbPath);
+
+    var fa = await db.Files.FirstOrDefaultAsync(x => x.FileName == assembly);
+    var fd = await db.Files.FirstOrDefaultAsync(x => x.FileName == detail);
+    if (fa?.StoragePath == null || fd?.StoragePath == null)
+        return Results.BadRequest("arquivo sem storage");
+
+    var link = await db.DrawingLinks.FirstOrDefaultAsync(l =>
+        l.AssemblyFile == assembly && l.DetailFileName == detail);
+    var marca = link?.Marca ?? "item";
+
+    using var http = new HttpClient();
+    var a = await http.GetByteArrayAsync(fa.StoragePath);
+    var d = await http.GetByteArrayAsync(fd.StoragePath);
+    var cmp = await ai.CompareDrawingsAsync(a, d, marca);
+    if (cmp == null) return Results.BadRequest("IA falhou/indisponível");
+
+    var created = new List<object>();
+    if (cmp.Value.TryGetProperty("comparisons", out var arr))
+        foreach (var c in arr.EnumerateArray())
+        {
+            var res = c.GetProperty("result").GetString() ?? "insufficient";
+            var f = new Finding
+            {
+                RuleId = $"XCHK-{marca}",
+                FileName = $"{assembly} ↔ {detail}",
+                Description = $"{c.GetProperty("characteristic").GetString()}: conjunto '{c.GetProperty("assembly").GetString()}' vs detalhe '{c.GetProperty("detail").GetString()}'",
+                Evidence = c.GetProperty("evidence").GetString() ?? "",
+                Severity = res == "mismatch" ? FindingSeverity.Critical
+                         : res == "insufficient" ? FindingSeverity.Warning : FindingSeverity.Info,
+                Source = FindingSource.Ai, Kind = FindingKind.Suspicion,
+                Confidence = res == "match" ? 0.9 : 0.7
+            };
+            db.Findings.Add(f);
+            created.Add(new { marca, res, f.Description });
+        }
+    db.AuditLog.Add(new AuditEvent
+    {
+        Action = "crosscompare", User = "gemini",
+        Detail = $"{assembly}↔{detail} ({marca}): {created.Count} comparações"
+    });
+    await db.SaveChangesAsync();
+    return Results.Ok(new { assembly, detail, marca, itemFound = cmp.Value.GetProperty("item_found").GetBoolean(), comparisons = created });
+});
+
 app.MapGet("/api/links/{file}", async (string file) =>
 {
     await using var db = new CheckDrawDbContext(dbPath);
