@@ -244,9 +244,9 @@ app.MapPost("/api/aps/translate", async (HttpRequest req) =>
     batch.Files.Add(drawingFile);
     await db.SaveChangesAsync();
 
-    var urn = await aps.UploadAsync("checkdraw_dwg", $"{Guid.NewGuid():N}_{name}", bytes);
     var jobId = jobs.Enqueue(async () =>
     {
+        var urn = await aps.UploadAsync("checkdraw_dwg", $"{Guid.NewGuid():N}_{name}", bytes);
         await aps.TranslateAndWaitAsync(urn);
         await using var db2 = new CheckDrawDbContext(dbPath);
         var f = await db2.Files.FirstOrDefaultAsync(x => x.FileName == name);
