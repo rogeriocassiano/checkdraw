@@ -169,9 +169,12 @@ app.MapPost("/api/analyze", async (HttpRequest req) =>
 
     var findings = await ai.AnalyzeChecklistAsync(ms.ToArray(), fileName, items, feedback);
 
-    // ID-FILE determinístico: número do arquivo DEVE ser idêntico ao carimbo
+    // ID-FILE determinístico: código do desenho no nome DEVE ser idêntico ao carimbo
     var expected = System.Text.RegularExpressions.Regex
-        .Match(fileName, @"^(.*?)(?:\s*-DC|\s*-.*|\..*)?$").Groups[1].Value;
+        .Match(fileName, @"[A-Za-z]{2}\d{4}M\d{6,}").Value;
+    if (string.IsNullOrEmpty(expected))
+        expected = System.Text.RegularExpressions.Regex
+            .Match(fileName, @"^(.*?)(?:\s*-DC|\s*-.*|[_.].*)?$").Groups[1].Value;
     var carimbo = ai.CarimboCode;
     if (!string.IsNullOrEmpty(carimbo) &&
         !string.Equals(expected.Trim(), carimbo.Trim(), StringComparison.OrdinalIgnoreCase))
