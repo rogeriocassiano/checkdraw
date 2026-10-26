@@ -282,8 +282,10 @@ app.MapPost("/api/crosscompare/{assembly}/{detail}", async (string assembly, str
     if (fa?.StoragePath == null || fd?.StoragePath == null)
         return Results.BadRequest("arquivo sem storage");
 
+    var detailCode = System.Text.RegularExpressions.Regex
+        .Match(detail, @"[A-Za-z]{2}\d{4}M\d{6,}").Value.ToUpperInvariant();
     var link = await db.DrawingLinks.FirstOrDefaultAsync(l =>
-        l.AssemblyFile == assembly && l.DetailFileName == detail);
+        l.AssemblyFile == assembly && l.DetailCode == detailCode);
     var marca = link?.Marca ?? "item";
 
     using var http = new HttpClient();
