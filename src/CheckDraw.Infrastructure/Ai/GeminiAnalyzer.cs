@@ -183,20 +183,51 @@ public class GeminiAnalyzer : IAiAnalyzer
     /// e resultado match|mismatch|insufficient — nunca aprovação automática.
     /// </summary>
     public async Task<JsonElement?> CompareDrawingsAsync(
-        byte[] assemblyPdf, byte[] detailPdf, string marca, CancellationToken ct = default)
+        byte[] assemblyPdf, byte[] detailPdf, string marca,
+        int? declaredQty = null, string? declaredWeight = null, string? declaredDetailCode = null,
+        CancellationToken ct = default)
     {
+        var declared = $"marca {marca}"
+            + (declaredQty.HasValue ? $", quantidade {declaredQty}" : "")
+            + (!string.IsNullOrEmpty(declaredWeight) ? $", peso unitário {declaredWeight} kg" : "")
+            + (!string.IsNullOrEmpty(declaredDetailCode) ? $", desenho de detalhe {declaredDetailCode}" : "");
         var prompt = $$"""
-            Você é um conferente cruzado: o PRIMEIRO PDF é o desenho de conjunto
-            (arranjo/isométrico) e o SEGUNDO é o desenho de detalhe da marca "{{marca}}".
-            Compare a MESMA peça nas duas folhas: quantidades, diâmetros/DN, cotas de
-            interface (furos, entre-eixos, espessuras), fixadores, materiais e
-            especificações declaradas. Se não achar a marca/item, diga.
+            Você é um conferente cruzado rigoroso. O PRIMEIRO PDF é o desenho de CONJUNTO
+            (arranjo geral/isométrico) e o SEGUNDO é o desenho de DETALHE.
+
+            CONTEXTO ESTRUTURAL — leia com atenção:
+            1. No conjunto existe um "QUADRO DE APLICAÇÃO": tabela MARCA → QUANT. →
+               DESENHO DE DETALHE → PESO. Cada linha é UMA peça usada na montagem.
+            2. O desenho de detalhe pode ter sua PRÓPRIA lista de materiais e até um
+               quadro de aplicação próprio apontando para SUB-detalhes. Essas linhas
+               são outros desenhos — NÃO são a peça sendo comparada.
+            3. A ÚNICA peça desta comparação é a declarada abaixo. NUNCA compare
+               marcas diferentes nem linhas de outras tabelas.
+
+            DECLARAÇÃO DO QUADRO DO CONJUNTO (a verificar): {{declared}}.
+
+            TAREFAS:
+            a) Confirme que o segundo PDF é realmente o desenho do código declarado
+               (leia o carimbo/título). Se for outro código, item_found=false.
+            b) Verifique no DETALHE cada dado declarado no conjunto: quantidade
+               fabricada, peso, e o que o detalhe mostra sobre a peça (DN/tubo,
+               elevação, furações, materiais, fixadores).
+            c) Para cada verificação cite ONDE está escrito em cada folha
+               (ex.: "quadro de aplicação, linha 07-501-006" / "lista de materiais").
+
+            REGRAS DURAS:
+            - Se uma marca aparece só na tabela do detalhe apontando outro código,
+              ela NÃO é comparação — ignore.
+            - Quantidade do quadro = quantas peças a montagem usa. Quantidade na
+              lista de materiais do detalhe = componentes dentro da peça. São
+              grandezas DIFERENTES — não as compare como se fossem a mesma.
+            - insufficient = dado ausente/ilegível — nunca force match nem mismatch.
+
             Responda SOMENTE JSON:
             {"item_found":true,"comparisons":[
-             {"characteristic":"qtd de furos","assembly":"4 furos Ø18 entre-eixos 120",
-              "detail":"4 furos Ø18 entre-eixos 110","unit":"mm",
+             {"characteristic":"quantidade","assembly":"1 (quadro, linha 07-501-006)",
+              "detail":"1 peça fabricada (carimbo/lista)","unit":"un",
               "result":"match|mismatch|insufficient","evidence":"onde está em cada folha"}]}
-            insufficient = dado ausente/ilegível — nunca force match nem mismatch.
             """;
         var raw = await CallRawTwoAsync(prompt, assemblyPdf, detailPdf, ct);
         if (raw == null) return null;

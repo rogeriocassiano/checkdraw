@@ -291,7 +291,7 @@ app.MapPost("/api/crosscompare/{assembly}/{detail}", async (string assembly, str
     using var http = new HttpClient();
     var a = await http.GetByteArrayAsync(fa.StoragePath);
     var d = await http.GetByteArrayAsync(fd.StoragePath);
-    var cmp = await ai.CompareDrawingsAsync(a, d, marca);
+    var cmp = await ai.CompareDrawingsAsync(a, d, marca, link?.Qty, link?.UnitWeight, link?.DetailCode);
     if (cmp == null) return Results.BadRequest("IA falhou/indisponível");
 
     var created = new List<object>();
@@ -343,7 +343,7 @@ app.MapPost("/api/crosscompare-all/{assembly}", (string assembly) =>
             var fd = await db.Files.FirstOrDefaultAsync(x => x.FileName == l.DetailFileName);
             if (fd?.StoragePath == null) continue;
             var d = await http.GetByteArrayAsync(fd.StoragePath);
-            var cmp = await ai.CompareDrawingsAsync(a, d, l.Marca);
+            var cmp = await ai.CompareDrawingsAsync(a, d, l.Marca, l.Qty, l.UnitWeight, l.DetailCode);
             if (cmp == null || !cmp.Value.TryGetProperty("comparisons", out var arr)) continue;
             foreach (var c in arr.EnumerateArray())
             {
