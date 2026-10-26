@@ -437,6 +437,15 @@ app.MapPost("/api/aps/translate", async (HttpRequest req) =>
     return Results.Ok(new { jobId, name, status = "queued" });
 });
 
+// Lista todos os arquivos do banco (para reanálise em lote e relatórios)
+app.MapGet("/api/files", async () =>
+{
+    await using var db = new CheckDrawDbContext(dbPath);
+    var fs = await db.Files.OrderBy(x => x.FileName)
+        .Select(x => new { x.FileName, x.StoragePath }).ToListAsync();
+    return Results.Ok(fs);
+});
+
 // Lookup: storage path por nome de arquivo (viewer encontra PDFs de qualquer lote)
 app.MapGet("/api/files/{name}", async (string name) =>
 {
