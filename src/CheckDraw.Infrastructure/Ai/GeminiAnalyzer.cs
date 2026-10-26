@@ -145,8 +145,40 @@ public class GeminiAnalyzer : IAiAnalyzer
         return findings;
     }
 
+    /// <summary>
+    /// Lê o quadro de aplicação de um conjunto: marca ↔ desenho de detalhe (+qtd/peso).
+    /// Aceita PDF direto (Gemini entende PDF) ou imagem rasterizada.
+    /// </summary>
+    public async Task<List<(string marca, string detail, int? qty, string? weight)>> ReadApplicationTableAsync(
+        byte[] content, string mimeType, CancellationToken ct = default)
+    {
+        var prompt = $$"""
+            Você lê quadros de aplicação de desenhos de conjunto.
+            Localize a tabela "QUADRO DE APLICAÇÃO" (ou equivalente) que mapeia
+            MARCA/posição → DESENHO DE DETALHE (código tipo AA3112M0003270).
+            Responda SOMENTE JSON:
+            {"links":[{"marca":"07-516-001","detail_code":"AA3112M0003270","qty":1,"unit_weight":"6.8"}]}
+            qty/weight = null se ausente. Só linhas com código de detalhe real.
+            """;
+        var raw = await CallRawAsync(prompt, content, ct, mimeType);
+        var links = new List<(string, string, int?, string?)>();
+        if (raw == null) return links;
+        try
+        {
+            var arr = JsonDocument.Parse(raw).RootElement.GetProperty("links");
+            foreach (var l in arr.EnumerateArray())
+                links.Add((
+                    l.GetProperty("marca").GetString() ?? "",
+                    l.GetProperty("detail_code").GetString() ?? "",
+                    l.TryGetProperty("qty", out var q) && q.ValueKind == JsonValueKind.Number ? q.GetInt32() : null,
+                    l.TryGetProperty("unit_weight", out var w2) ? w2.GetString() : null));
+        }
+        catch { }
+        return links;
+    }
+
     /// <summary>Chamada crua: devolve o texto JSON do modelo (ou null em erro).</summary>
-    private async Task<string?> CallRawAsync(string prompt, byte[] image, CancellationToken ct)
+    private async Task<string?> CallRawAsync(string prompt, byte[] image, CancellationToken ct, string mimeType = "image/png")
     {
         if (!Available) return null;
         try
@@ -154,7 +186,7 @@ public class GeminiAnalyzer : IAiAnalyzer
             var parts = new object[]
             {
                 new { text = prompt },
-                new { inline_data = new { mime_type = "image/png", data = Convert.ToBase64String(image) } }
+                new { inline_data = new { mime_type = mimeType, data = Convert.ToBase64String(image) } }
             };
             var body = new
             {

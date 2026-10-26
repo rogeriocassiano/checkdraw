@@ -230,6 +230,24 @@ app.MapPost("/api/crosscheck/{file}", async (string file) =>
 
     var links = new CheckDraw.Infrastructure.CrossCheck.CrossCheckService()
         .DiscoverLinks(ext, file);
+
+    // texto vetorizado como curvas (texts≈0) → IA lê o quadro do PDF direto
+    var via = "vector";
+    if (links.Count == 0)
+    {
+        var ai = new CheckDraw.Infrastructure.Ai.GeminiAnalyzer();
+        if (ai.Available)
+        {
+            var aiLinks = await ai.ReadApplicationTableAsync(bytes, "application/pdf");
+            links = aiLinks.Select(l => new DrawingLink
+            {
+                AssemblyFile = file, Marca = l.marca, DetailCode = l.detail.ToUpperInvariant(),
+                Qty = l.qty, UnitWeight = l.weight
+            }).ToList();
+            via = "ai";
+        }
+    }
+
     foreach (var l in links)
     {
         var det = await db.Files.FirstOrDefaultAsync(x =>
@@ -246,7 +264,7 @@ app.MapPost("/api/crosscheck/{file}", async (string file) =>
     await db.SaveChangesAsync();
     return Results.Ok(new
     {
-        file, vectors = ext.Geometry.Count, texts = ext.Texts.Count,
+        file, vectors = ext.Geometry.Count, texts = ext.Texts.Count, via,
         links = links.Count, missing = links.Count(l => l.Status == "missing"),
         sample = links.Take(8)
     });
