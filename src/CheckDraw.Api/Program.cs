@@ -252,7 +252,7 @@ app.MapPost("/api/aps/translate", async (HttpRequest req) =>
         var f = await db2.Files.FirstOrDefaultAsync(x => x.FileName == name);
         if (f != null) { f.StoragePath = $"aps:{urn}"; await db2.SaveChangesAsync(); }
     });
-    return Results.Ok(new { jobId, urn, name });
+    return Results.Ok(new { jobId, name, status = "queued" });
 });
 
 // Lookup: storage path por nome de arquivo (viewer encontra PDFs de qualquer lote)
