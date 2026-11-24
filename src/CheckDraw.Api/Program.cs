@@ -35,8 +35,18 @@ var supaUrl = app.Configuration["SUPABASE_URL"];   // https://<ref>.supabase.co
 var supaKey = app.Configuration["SUPABASE_KEY"];   // publishable/service key
 var storageOk = !string.IsNullOrWhiteSpace(supaUrl) && !string.IsNullOrWhiteSpace(supaKey);
 
-using (var db = new CheckDrawDbContext(dbPath))
+try
 {
+    using var db = new CheckDrawDbContext(dbPath);
+    db.Database.EnsureCreated();
+    EnsureDefaultChecklist(db);
+}
+catch (Exception ex) when (dbPath.Contains("Host="))
+{
+    Console.WriteLine($"[WARN] Postgres indisponível ({ex.Message}); ativando fallback SQLite local checkdraw-web.db");
+    dbPath = "checkdraw-web.db";
+    storageOk = false;
+    using var db = new CheckDrawDbContext(dbPath);
     db.Database.EnsureCreated();
     EnsureDefaultChecklist(db);
 }
@@ -298,12 +308,21 @@ app.MapPost("/api/upload", async (HttpRequest req) =>
                 r.Headers.Add("apikey", supaKey);
                 r.Headers.Add("Authorization", $"Bearer {supaKey}");
                 r.Headers.Add("x-upsert", "true");
-                var resp = await http.SendAsync(r);
-                if (resp.IsSuccessStatusCode)
+                var ef = dbFiles.FirstOrDefault(x => x.FileName == name);
+                try
                 {
-                    var pub = $"{supaUrl}/storage/v1/object/public/drawings/{sp}";
-                    var ef = dbFiles.FirstOrDefault(x => x.FileName == name);
-                    if (ef != null) ef.StoragePath = pub;
+                    var resp = await http.SendAsync(r);
+                    if (resp.IsSuccessStatusCode)
+                    {
+                        var pub = $"{supaUrl}/storage/v1/object/public/drawings/{sp}";
+                        if (ef != null) ef.StoragePath = pub;
+                    }
+                    else if (ef != null)
+                        ef.StoragePath = $"/api/raw/{Uri.EscapeDataString(ef.FileName)}";
+                }
+                catch
+                {
+                    if (ef != null) ef.StoragePath = $"/api/raw/{Uri.EscapeDataString(ef.FileName)}";
                 }
             }
             await db.SaveChangesAsync();

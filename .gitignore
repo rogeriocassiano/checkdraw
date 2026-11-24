@@ -6,3 +6,6 @@ testdata/
 .vs/
 gemini.key
 publish/
+
+# Local Netlify folder
+.netlify
