@@ -1,100 +1,653 @@
 <!DOCTYPE html>
-<html lang="pt-BR"><head><meta charset="utf-8"><title>CheckDraw — Desenho</title>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CheckDraw — Mesa de Conferência</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
-body{margin:0;background:#0b0e15;color:#e2e8f0;font-family:'Segoe UI',sans-serif;display:flex;height:100vh}
-#cv{flex:1;background:#2b2b2b;cursor:grab}
-#side{width:360px;min-width:360px;flex-shrink:0;background:#111827;border-left:1px solid #1f2937;padding:16px;overflow-y:auto}
-h3{font-size:13px;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px}
-.fi{padding:10px;border-radius:8px;margin-bottom:8px;font-size:13px;line-height:1.4;background:#1f2937;cursor:pointer}
-.fi:hover{background:#2c3a52}.fi.on{outline:2px solid #f59e0b}
-.E,.C{color:#f87171}.W{color:#fbbf24}.I{color:#60a5fa}
-#tools{position:fixed;top:12px;right:336px;display:flex;gap:6px}
-#tools button{background:#1f2937;border:1px solid #374151;color:#e2e8f0;width:34px;height:34px;border-radius:8px;font-size:16px;cursor:pointer}
-</style></head><body>
-<div id="tools"><button onclick="z(1.25)">+</button><button onclick="z(0.8)">−</button><button onclick="fit()">⊡</button></div>
-<canvas id="cv"></canvas>
-<div id="side"><h3 id="t">Desenho</h3><div id="st" style="font-size:12px;color:#64748b;margin-bottom:14px"></div><h3>Apontamentos — clique p/ localizar</h3><div id="fl"></div></div>
+ *{box-sizing:border-box;margin:0}
+ body{background:#0b0e15;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-serif;display:flex;flex-direction:column;height:100vh;overflow:hidden}
+ topbar,header.bar{background:#0f172a;border-bottom:1px solid #1f2937;padding:8px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;z-index:20}
+ .back{color:#60a5fa;text-decoration:none;font-weight:700;font-size:13px;padding:5px 10px;border-radius:6px;background:#1e293b}
+ .back:hover{background:#283548}
+ .doc-title{font-weight:700;font-size:13.5px;color:#f1f5f9}
+ .tool-grp{display:flex;gap:4px;align-items:center;background:#111827;padding:3px;border-radius:8px;border:1px solid #1f2937}
+ button{background:#1f2937;border:1px solid #374151;color:#e2e8f0;padding:5px 10px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;transition:.12s}
+ button:hover{background:#2c3a52}
+ button.on{background:#2563eb;border-color:#3b82f6;color:#fff}
+ button.t-yel.on{background:#ca8a04;border-color:#facc15;color:#fff}
+ button.t-red.on{background:#b91c1c;border-color:#f87171;color:#fff}
+ button.t-org.on{background:#c2410c;border-color:#fb923c;color:#fff}
+ button.ai-btn{background:#065f46;border-color:#047857;color:#a7f3d0}
+ button.dc-btn{background:#1e3a8a;border-color:#3b82f6;color:#bfdbfe}
+ select{background:#1f2937;border:1px solid #374151;color:#e2e8f0;padding:5px 8px;border-radius:6px;font-size:12px}
+ #workspace{flex:1;display:flex;min-height:0;position:relative}
+ #stage{flex:1;display:flex;min-width:0;position:relative;background:#22262e}
+ .pane{flex:1;position:relative;min-width:0;height:100%;overflow:hidden}
+ .pane + .pane{border-left:2px solid #3b82f6}
+ .pane-lbl{position:absolute;top:8px;left:10px;background:#0f172acc;color:#cbd5e1;padding:3px 9px;border-radius:6px;font-size:11px;z-index:5;pointer-events:none;border:1px solid #334155}
+ canvas.draw-cv{width:100%;height:100%;display:block}
+ #apsContainer{width:100%;height:100%;display:none;position:relative}
+ #side{width:380px;min-width:380px;flex-shrink:0;background:#111827;border-left:1px solid #1f2937;padding:14px;overflow-y:auto;display:flex;flex-direction:column;gap:10px}
+ h3{font-size:11.5px;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em}
+ .score-box{display:flex;justify-content:space-between;align-items:center;background:#0f172a;border:1px solid #1f2937;border-radius:8px;padding:10px 12px}
+ .score-val{font-size:20px;font-weight:700}
+ .fi{padding:10px;border-radius:8px;margin-bottom:8px;font-size:12.5px;line-height:1.42;background:#1f2937;border:1px solid transparent;cursor:pointer}
+ .fi:hover{background:#263349}
+ .fi.on{border-color:#f59e0b;background:#272f40}
+ .sev-0{color:#60a5fa;font-weight:700}.sev-1{color:#fbbf24;font-weight:700}.sev-2,.sev-3{color:#f87171;font-weight:700}
+ .pill{display:inline-block;padding:1px 7px;border-radius:99px;font-size:10.5px;font-weight:600;background:#374151;color:#cbd5e1}
+ .pill.ok{background:#064e3b;color:#34d399}.pill.warn{background:#78350f;color:#fbbf24}
+ .fi-actions{display:flex;gap:6px;margin-top:7px}
+ .fi-actions button{padding:3px 8px;font-size:11px}
+</style>
+</head>
+<body>
+<header class="bar">
+ <a class="back" id="backLink" href="index.html">← Painel</a>
+ <span class="doc-title" id="t">Desenho</span>
+
+ <div class="tool-grp" id="markTools">
+  <button id="tl-pan" class="on" onclick="setTool('pan')" title="Arrastar folha (Pan)">Mover</button>
+  <button id="tl-yel" class="t-yel" onclick="setTool('yel')" title="Marca-texto Amarelo: item verificado OK">Amarelo (OK)</button>
+  <button id="tl-red" class="t-red" onclick="setTool('red')" title="Marca-texto Vermelho: correção necessária">Vermelho (Erro)</button>
+  <button id="tl-org" class="t-org" onclick="setTool('org')" title="Marca-texto Laranja: exige revalidação">Laranja (Revalidar)</button>
+  <button id="tl-del" onclick="setTool('del')" title="Clique sobre uma marca para apagá-la">Apagar Marca</button>
+ </div>
+
+ <div class="tool-grp">
+  <button onclick="zoomMain(1.25)" title="Mais zoom">+</button>
+  <button onclick="zoomMain(0.8)" title="Menos zoom">−</button>
+  <button onclick="fitAll()" title="Ajustar à tela">Ajustar</button>
+  <select id="pageSel" style="display:none" onchange="changePdfPage(this.value)"></select>
+ </div>
+
+ <div style="margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+  <select id="cmpSel" onchange="setCompareFile(this.value)">
+   <option value="">Comparar lado a lado: (nenhum)</option>
+  </select>
+  <button class="dc-btn" id="dcBtn" onclick="ingestDcScan()" title="Detecta marcações amarelas/vermelhas por visão computacional (HSV)">Detectar Marcas (-DC)</button>
+  <button class="ai-btn" id="aiBtn" onclick="runAiHere()">Analisar com IA</button>
+ </div>
+</header>
+
+<div id="workspace">
+ <div id="stage">
+  <div class="pane" id="pane1">
+   <div class="pane-lbl" id="lbl1">Folha Principal</div>
+   <canvas class="draw-cv" id="cv"></canvas>
+   <div id="apsContainer"></div>
+  </div>
+  <div class="pane" id="pane2" style="display:none">
+   <div class="pane-lbl" id="lbl2">Detalhe Comparado</div>
+   <canvas class="draw-cv" id="cv2"></canvas>
+  </div>
+ </div>
+
+ <aside id="side">
+  <div class="score-box">
+   <div>
+    <div style="font-size:11px;color:#64748b;text-transform:uppercase">Conformidade</div>
+    <div class="score-val" id="confVal">—</div>
+   </div>
+   <div style="text-align:right;font-size:11.5px;color:#94a3b8" id="st">Carregando...</div>
+  </div>
+
+  <div style="display:flex;justify-content:space-between;align-items:center">
+   <h3>Apontamentos — clique p/ localizar</h3>
+   <label style="font-size:11px;color:#94a3b8"><input type="checkbox" id="showBoxes" checked onchange="drawAll()"> Exibir caixas</label>
+  </div>
+  <div id="fl" style="flex:1;overflow-y:auto"></div>
+ </aside>
+</div>
+
 <script>
-const P=new URLSearchParams(location.search),API='https://checkdraw-production.up.railway.app';
-const cv=document.getElementById('cv'),ctx=cv.getContext('2d');
-let ents=[],marks=[],findings=[],vx=0,vy=0,sc=1,focus=-1,img=null,imgW=1,imgH=1,mode='dxf';
-const file=P.get('file'),src=P.get('src');
-document.getElementById('t').textContent=file||'desenho';
-pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-const SEVC=['#60a5fa','#fbbf24','#f87171','#ef4444'];
+const P = new URLSearchParams(location.search);
+const API = P.get('api') || localStorage.getItem('cd_api') ||
+ ((location.hostname === 'localhost' || location.hostname === '127.0.0.1') && location.port ? location.origin : 'https://checkdraw-production.up.railway.app');
 
-function parseDxf(t){
- const L=t.split(/\r?\n/).map(s=>s.trim()),E=[];let i=0;
- while(i<L.length-1){if(L[i]!=='ENTITIES'){i++;continue}i+=2;break}
- while(i<L.length-1){if(L[i]!=='0'){i++;continue}
-  const t=L[i+1],e={t};i+=2;
-  while(i<L.length-1&&L[i]!=='0'){const c=+L[i],v=L[i+1];(e[c]=e[c]||[]).push(v);i+=2}
-  E.push(e)}
- return E}
-const num=(e,c,k=0)=>parseFloat((e[c]||[])[k]||0),txt=(e,c)=>((e[c]||[])[0]||'');
+if (P.get('api')) document.getElementById('backLink').href = `index.html?api=${encodeURIComponent(API)}`;
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-function draw(){
- cv.width=cv.clientWidth;cv.height=cv.clientHeight;
- ctx.clearRect(0,0,cv.width,cv.height);
- if(mode==='img'){
-  ctx.setTransform(sc,0,0,sc,vx,vy);
-  if(img)ctx.drawImage(img,0,0);
-  ctx.lineWidth=3/sc;
-  marks.forEach(m=>{const c={1:'#facc15',2:'#ef4444',3:'#fb923c',4:'#22c55e'}[m.state]||'#facc15';
-   ctx.fillStyle=c+'44';ctx.strokeStyle=c;ctx.fillRect(m.x,m.y,m.w,m.h);ctx.strokeRect(m.x,m.y,m.w,m.h)});
-  findings.forEach((f,i)=>{if(f.bboxX==null)return;
-   const c=SEVC[f.severity]||'#fbbf24',x=f.bboxX*imgW,y=f.bboxY*imgH,w=f.bboxW*imgW,h=f.bboxH*imgH;
-   ctx.lineWidth=(i===focus?5:2.5)/sc;ctx.strokeStyle=c;
-   ctx.strokeRect(x,y,w,h);
-   if(i===focus){ctx.fillStyle=c+'33';ctx.fillRect(x,y,w,h)}});
+const SN = ['Info','Alerta','Erro','Crítico'];
+const RN = ['aberto','confirmado','descartado','corrigido'];
+const SEVC = ['#60a5fa','#fbbf24','#f87171','#ef4444'];
+const MARKC = { 1:'#facc15', 2:'#ef4444', 3:'#fb923c', 4:'#22c55e' };
+
+let rawFileParam = P.get('file') || '';
+let mainFile = rawFileParam;
+let compareFile = P.get('compare') || '';
+if (rawFileParam.includes(' ↔ ')) {
+ const parts = rawFileParam.split(' ↔ ').map(s => s.trim());
+ mainFile = parts[0];
+ compareFile = compareFile || parts[1] || '';
+}
+const explicitSrc = P.get('src') || '';
+const getReviewer = () => localStorage.getItem('cd_reviewer') || 'Conferente';
+const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+
+function resolveSrc(sp) {
+ if (!sp || sp === 'null') return '';
+ if (sp.startsWith('http') || sp.startsWith('aps:')) return sp;
+ if (sp.startsWith('/')) return API + sp;
+ return sp;
+}
+
+// Estado por painel (pane1 = principal, pane2 = detalhe comparado)
+function createSheetState(canvasEl) {
+ return {
+  cv: canvasEl, ctx: canvasEl.getContext('2d'),
+  fileName: '', mode: 'dxf', ents: [], pdfDoc: null, pageNum: 1,
+  img: null, imgW: 1, imgH: 1, vx: 0, vy: 0, sc: 1, marks: []
+ };
+}
+const S1 = createSheetState(document.getElementById('cv'));
+const S2 = createSheetState(document.getElementById('cv2'));
+
+let findings = [], focus = -1, tool = 'pan', selPreview = null;
+
+function setTool(t) {
+ tool = t;
+ ['pan','yel','red','org','del'].forEach(k => document.getElementById('tl-' + k).classList.toggle('on', k === t));
+ S1.cv.style.cursor = t === 'pan' ? 'grab' : t === 'del' ? 'not-allowed' : 'crosshair';
+}
+
+function parseDxf(t) {
+ const L = t.split(/\r?\n/).map(s => s.trim()), E = [];
+ let i = 0;
+ while (i < L.length - 1) { if (L[i] !== 'ENTITIES') { i++; continue; } i += 2; break; }
+ while (i < L.length - 1) {
+  if (L[i] === '0' && L[i+1] === 'ENDSEC') break;
+  if (L[i] !== '0') { i++; continue; }
+  const tp = L[i+1], e = { t: tp }; i += 2;
+  while (i < L.length - 1 && L[i] !== '0') { const c = +L[i], v = L[i+1]; (e[c] = e[c] || []).push(v); i += 2; }
+  E.push(e);
+ }
+ return E;
+}
+const num = (e, c, k = 0) => parseFloat((e[c] || [])[k] || 0);
+const txt = (e, c) => ((e[c] || [])[0] || '');
+
+function boundsOf(S) {
+ if (S.mode === 'img') return { x0: 0, y0: 0, x1: S.imgW, y1: S.imgH };
+ const xs = [], ys = [];
+ S.ents.forEach(e => { [10,11,13,14].forEach(c => e[c] && xs.push(...e[c].map(Number))); [20,21,23,24].forEach(c => e[c] && ys.push(...e[c].map(Number))); });
+ return xs.length ? { x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys) } : { x0: 0, x1: 100, y0: 0, y1: 100 };
+}
+
+function fitSheet(S) {
+ if (S.mode === 'aps' || !S.cv.clientWidth) return;
+ const b = boundsOf(S);
+ const bw = Math.max(1, b.x1 - b.x0), bh = Math.max(1, b.y1 - b.y0);
+ S.sc = Math.min((S.cv.clientWidth - 32) / bw, (S.cv.clientHeight - 32) / bh);
+ if (S.mode === 'img') {
+  S.vx = (S.cv.clientWidth - bw * S.sc) / 2;
+  S.vy = (S.cv.clientHeight - bh * S.sc) / 2;
  } else {
-  ctx.setTransform(sc,0,0,-sc,vx,vy);
-  ctx.lineWidth=1/sc;ctx.strokeStyle='#e8e8e8';ctx.fillStyle='#e8e8e8';ctx.font='10px sans-serif';
-  for(const e of ents){
-   if(e.t==='LINE'){ctx.beginPath();ctx.moveTo(num(e,10),num(e,20));ctx.lineTo(num(e,11),num(e,21));ctx.stroke()}
-   if(e.t==='LWPOLYLINE'||e.t==='POLYLINE'){ctx.beginPath();(e[10]||[]).forEach((x,j)=>{const y=num(e,20,j);j?ctx.lineTo(+x,y):ctx.moveTo(+x,y)});if(e[70]==='1')ctx.closePath();ctx.stroke()}
-   if(e.t==='CIRCLE'){ctx.beginPath();ctx.arc(num(e,10),num(e,20),num(e,40),0,7);ctx.stroke()}
-   if(e.t==='TEXT'||e.t==='ATTRIB'){ctx.save();ctx.scale(1,-1);ctx.fillText(txt(e,1),num(e,10),-num(e,20));ctx.restore()}}
-  marks.forEach(m=>{const c={1:'#facc15',2:'#ef4444',3:'#fb923c',4:'#22c55e'}[m.state]||'#facc15';
-   ctx.fillStyle=c+'55';ctx.strokeStyle=c;ctx.lineWidth=1.5/sc;ctx.fillRect(m.x,m.y,m.w,m.h);ctx.strokeRect(m.x,m.y,m.w,m.h)});
+  S.vx = -b.x0 * S.sc + (S.cv.clientWidth - bw * S.sc) / 2;
+  S.vy = S.cv.clientHeight + b.y0 * S.sc - (S.cv.clientHeight - bh * S.sc) / 2;
+ }
+ drawSheet(S, S === S1);
+}
+function fitAll() { fitSheet(S1); if (compareFile) fitSheet(S2); }
+function zoomMain(f) { S1.sc *= f; drawSheet(S1, true); if (compareFile) { S2.sc *= f; drawSheet(S2, false); } }
+
+function screenToWorld(S, ox, oy) {
+ if (S.mode === 'img') return { x: (ox - S.vx) / S.sc, y: (oy - S.vy) / S.sc };
+ return { x: (ox - S.vx) / S.sc, y: -(oy - S.vy) / S.sc };
+}
+
+function drawSheet(S, isPrimary) {
+ if (S.mode === 'aps') return;
+ const cv = S.cv, ctx = S.ctx;
+ if (!cv.clientWidth || !cv.clientHeight) return;
+ cv.width = cv.clientWidth; cv.height = cv.clientHeight;
+ ctx.clearRect(0, 0, cv.width, cv.height);
+ const showB = document.getElementById('showBoxes').checked;
+
+ if (S.mode === 'img') {
+  ctx.setTransform(S.sc, 0, 0, S.sc, S.vx, S.vy);
+  if (S.img) ctx.drawImage(S.img, 0, 0);
+  ctx.lineWidth = 2.5 / S.sc;
+  S.marks.forEach(m => {
+   const c = MARKC[m.state] || '#facc15';
+   ctx.fillStyle = c + '3d'; ctx.strokeStyle = c;
+   ctx.fillRect(m.x, m.y, m.w, m.h); ctx.strokeRect(m.x, m.y, m.w, m.h);
+  });
+  if (showB) {
+   findings.forEach((f, i) => {
+    if (f.bboxX == null) return;
+    if (f.fileName !== S.fileName) return;
+    const c = SEVC[f.severity] || '#fbbf24';
+    const x = f.bboxX * S.imgW, y = f.bboxY * S.imgH, w = Math.max(f.bboxW * S.imgW, 18), h = Math.max(f.bboxH * S.imgH, 18);
+    ctx.lineWidth = (i === focus ? 4.5 : 2.2) / S.sc;
+    ctx.strokeStyle = c;
+    ctx.strokeRect(x, y, w, h);
+    if (i === focus) { ctx.fillStyle = c + '33'; ctx.fillRect(x, y, w, h); }
+   });
+  }
+  if (isPrimary && selPreview) {
+   const c = MARKC[selPreview.state] || '#facc15';
+   ctx.lineWidth = 2 / S.sc; ctx.strokeStyle = c; ctx.fillStyle = c + '33';
+   ctx.fillRect(selPreview.x, selPreview.y, selPreview.w, selPreview.h);
+   ctx.strokeRect(selPreview.x, selPreview.y, selPreview.w, selPreview.h);
+  }
+ } else {
+  ctx.setTransform(S.sc, 0, 0, -S.sc, S.vx, S.vy);
+  ctx.lineWidth = 1.1 / S.sc; ctx.strokeStyle = '#e8e8e8'; ctx.fillStyle = '#e8e8e8'; ctx.font = '10px sans-serif';
+  for (const e of S.ents) {
+   if (e.t === 'LINE') { ctx.beginPath(); ctx.moveTo(num(e,10), num(e,20)); ctx.lineTo(num(e,11), num(e,21)); ctx.stroke(); }
+   else if (e.t === 'LWPOLYLINE' || e.t === 'POLYLINE') {
+    ctx.beginPath(); (e[10] || []).forEach((x, j) => { const y = num(e,20,j); j ? ctx.lineTo(+x, y) : ctx.moveTo(+x, y); });
+    if (e[70] == '1') ctx.closePath(); ctx.stroke();
+   } else if (e.t === 'CIRCLE') { ctx.beginPath(); ctx.arc(num(e,10), num(e,20), num(e,40), 0, Math.PI * 2); ctx.stroke(); }
+   else if (e.t === 'ARC') { ctx.beginPath(); ctx.arc(num(e,10), num(e,20), num(e,40), num(e,50)*Math.PI/180, num(e,51)*Math.PI/180); ctx.stroke(); }
+   else if (e.t === 'TEXT' || e.t === 'MTEXT' || e.t === 'ATTRIB') {
+    ctx.save(); ctx.translate(num(e,10), num(e,20)); ctx.scale(1, -1); ctx.fillText(txt(e,1), 0, 0); ctx.restore();
+   }
+  }
+  S.marks.forEach(m => {
+   const c = MARKC[m.state] || '#facc15';
+   ctx.fillStyle = c + '48'; ctx.strokeStyle = c; ctx.lineWidth = 1.8 / S.sc;
+   ctx.fillRect(m.x, m.y, m.w, m.h); ctx.strokeRect(m.x, m.y, m.w, m.h);
+  });
+  if (isPrimary && selPreview) {
+   const c = MARKC[selPreview.state] || '#facc15';
+   ctx.lineWidth = 2 / S.sc; ctx.strokeStyle = c; ctx.fillStyle = c + '33';
+   ctx.fillRect(selPreview.x, selPreview.y, selPreview.w, selPreview.h);
+   ctx.strokeRect(selPreview.x, selPreview.y, selPreview.w, selPreview.h);
+  }
  }
 }
-function bounds(){return mode==='img'?{x0:0,y0:0,x1:imgW,y1:imgH}:(()=>{
- const xs=[],ys=[];ents.forEach(e=>{[10,11].forEach(c=>e[c]&&xs.push(...e[c].map(Number)));[20,21].forEach(c=>e[c]&&ys.push(...e[c].map(Number)))});
- return xs.length?{x0:Math.min(...xs),x1:Math.max(...xs),y0:Math.min(...ys),y1:Math.max(...ys)}:{x0:0,x1:1,y0:0,y1:1}})()}
-function fit(){const b=bounds();
- sc=Math.min(cv.clientWidth/(b.x1-b.x0+40),cv.clientHeight/(b.y1-b.y0+40));
- if(mode==='img'){vx=(cv.clientWidth-(b.x1-b.x0)*sc)/2;vy=(cv.clientHeight-(b.y1-b.y0)*sc)/2}
- else{vx=-b.x0*sc+20*sc;vy=cv.clientHeight+b.y0*sc-20*sc}
- draw()}
-function centerOn(f){const x=(f.bboxX+f.bboxW/2)*imgW,y=(f.bboxY+f.bboxH/2)*imgH;
- vx=cv.clientWidth/2-x*sc;vy=cv.clientHeight/2-y*sc;draw()}
-function z(f){sc*=f;draw()}
-let drag=null;
-cv.onmousedown=e=>{drag={x:e.offsetX,y:e.offsetY}};
-cv.onmousemove=e=>{if(drag){vx+=e.offsetX-drag.x;vy+=e.offsetY-drag.y;drag={x:e.offsetX,y:e.offsetY};draw()}};
-cv.onmouseup=()=>drag=null;cv.onwheel=e=>{e.preventDefault();z(e.deltaY<0?1.1:0.9)};
-function foco(i){focus=i;
- document.querySelectorAll('.fi').forEach((el,j)=>el.classList.toggle('on',j===i));
- if(findings[i].bboxX!=null)centerOn(findings[i]);else draw()}
-(async()=>{
- const q=await(await fetch(API+'/api/queue')).json().catch(()=>[]);
- let st=(src&&src!=='null')?src:(q.find(x=>x.fileName===file)||{}).storage;
- if(!st)try{st=(await(await fetch(`${API}/api/files/${encodeURIComponent(file)}`)).json()).storagePath}catch(e){}
- if(st&&file?.toLowerCase().endsWith('.pdf')){
-  mode='img';
-  const pdf=await pdfjsLib.getDocument(st).promise;
-  const pg=await pdf.getPage(1),vp=pg.getViewport({scale:2});
-  const c2=document.createElement('canvas');c2.width=vp.width;c2.height=vp.height;
-  await pg.render({canvasContext:c2.getContext('2d'),viewport:vp}).promise;
-  img=c2;imgW=vp.width;imgH=vp.height;fit()
- }else if(st&&file?.toLowerCase().endsWith('.dxf')){ents=parseDxf(await(await fetch(st)).text());fit()}
- marks=file?await(await fetch(`${API}/api/marks/${encodeURIComponent(file)}`)).json().catch(()=>[]):[];
- findings=await(await fetch(`${API}/api/findings`)).json().catch(()=>[]);
- findings=findings.filter(f=>f.fileName===file);
- draw();
- document.getElementById('fl').innerHTML=findings.map((f,i)=>`<div class="fi" onclick="foco(${i})"><span class="s ${(f.severity||'I')[0]}">${f.severity}</span><b>${f.ruleId}</b> <span style="color:#64748b">[${['aberto','✓','✗','✓corr'][f.reviewStatus??0]}]</span><br>${f.description}${f.suggestedFix?`<br><i style="color:#60a5fa">💡 ${f.suggestedFix}</i>`:''}</div>`).join('')||'<div class="fi">sem apontamentos</div>';
- document.getElementById('st').textContent=`${ents.length||''} entidades · ${marks.length} marcas · ${findings.length} achados`;
+function drawAll() { drawSheet(S1, true); if (compareFile) drawSheet(S2, false); }
+
+// Eventos de mouse (Pan + Marca-texto + Borracha + Zoom no cursor)
+function bindCanvasInteraction(S, isPrimary) {
+ let dragPan = null, markStart = null;
+ S.cv.onmousedown = async e => {
+  if (!isPrimary || tool === 'pan' || e.button === 1) {
+   dragPan = { x: e.offsetX, y: e.offsetY };
+   return;
+  }
+  const w = screenToWorld(S, e.offsetX, e.offsetY);
+  if (tool === 'del') {
+   const hit = [...S.marks].reverse().find(m => w.x >= m.x && w.x <= m.x + m.w && w.y >= m.y && w.y <= m.y + m.h);
+   if (hit) {
+    await fetch(`${API}/api/marks/${hit.id}`, { method: 'DELETE' });
+    S.marks = S.marks.filter(m => m.id !== hit.id);
+    drawSheet(S, true); updateStats();
+   }
+   return;
+  }
+  markStart = w;
+ };
+ S.cv.onmousemove = e => {
+  if (dragPan) {
+   S.vx += e.offsetX - dragPan.x; S.vy += e.offsetY - dragPan.y;
+   dragPan = { x: e.offsetX, y: e.offsetY };
+   drawSheet(S, isPrimary);
+   return;
+  }
+  if (markStart && isPrimary) {
+   const cur = screenToWorld(S, e.offsetX, e.offsetY);
+   const stMap = { yel: 1, red: 2, org: 3 };
+   selPreview = {
+    x: Math.min(markStart.x, cur.x), y: Math.min(markStart.y, cur.y),
+    w: Math.abs(cur.x - markStart.x), h: Math.abs(cur.y - markStart.y),
+    state: stMap[tool] || 1
+   };
+   drawSheet(S, true);
+  }
+ };
+ S.cv.onmouseup = async () => {
+  dragPan = null;
+  if (markStart && selPreview) {
+   const box = selPreview; markStart = null; selPreview = null;
+   if (box.w * S.sc > 6 && box.h * S.sc > 6) {
+    let note = null;
+    if (box.state === 2) note = prompt('Observação da correção necessária (opcional):') || null;
+    const resp = await fetch(API + '/api/marks', {
+     method: 'POST', headers: { 'Content-Type': 'application/json' },
+     body: JSON.stringify({ fileName: S.fileName, x: box.x, y: box.y, w: box.w, h: box.h, state: box.state, note, user: getReviewer() })
+    });
+    if (resp.ok) S.marks.push(await resp.json());
+   }
+   drawSheet(S, true); updateStats();
+  }
+ };
+ S.cv.onwheel = e => {
+  e.preventDefault();
+  const f = e.deltaY < 0 ? 1.12 : 0.89;
+  S.vx = e.offsetX - (e.offsetX - S.vx) * f;
+  S.vy = e.offsetY - (e.offsetY - S.vy) * f;
+  S.sc *= f;
+  drawSheet(S, isPrimary);
+ };
+}
+bindCanvasInteraction(S1, true);
+bindCanvasInteraction(S2, false);
+window.addEventListener('resize', drawAll);
+
+async function lookupStorage(fileName) {
+ if (!fileName) return '';
+ try {
+  const r = await fetch(`${API}/api/files/${encodeURIComponent(fileName)}`);
+  if (r.ok) return resolveSrc((await r.json()).storagePath);
+ } catch {}
+ return '';
+}
+
+async function renderPdfPage(S, pageNumber) {
+ S.pageNum = Number(pageNumber);
+ const pg = await S.pdfDoc.getPage(S.pageNum);
+ const vp = pg.getViewport({ scale: 2.2 });
+ const c2 = document.createElement('canvas');
+ c2.width = vp.width; c2.height = vp.height;
+ await pg.render({ canvasContext: c2.getContext('2d'), viewport: vp }).promise;
+ S.img = c2; S.imgW = vp.width; S.imgH = vp.height;
+ fitSheet(S);
+}
+
+async function changePdfPage(p) { if (S1.pdfDoc) await renderPdfPage(S1, p); }
+
+// Autodesk APS Viewer para arquivos DWG traduzidos (aps:<urn>)
+async function launchApsViewer(urn) {
+ S1.mode = 'aps';
+ S1.cv.style.display = 'none';
+ const container = document.getElementById('apsContainer');
+ container.style.display = 'block';
+
+ if (!window.Autodesk) {
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = 'https://developer.api.autodesk.com/modelderivative/v2/viewers/7.*/style.min.css';
+  document.head.appendChild(link);
+  await new Promise((res, rej) => {
+   const s = document.createElement('script');
+   s.src = 'https://developer.api.autodesk.com/modelderivative/v2/viewers/7.*/viewer3D.min.js';
+   s.onload = res; s.onerror = rej; document.head.appendChild(s);
+  });
+ }
+
+ const tokResp = await fetch(`${API}/api/aps/token`);
+ if (!tokResp.ok) { container.innerHTML = `<div style="padding:24px;color:#f87171">${esc(await tokResp.text())}</div>`; return; }
+ const tok = await tokResp.json();
+
+ Autodesk.Viewing.Initializer({ env: 'AutodeskProduction2', api: 'streamingV2', getAccessToken: cb => cb(tok.access_token, tok.expires_in) }, () => {
+  const viewer = new Autodesk.Viewing.GuiViewer3D(container);
+  viewer.start();
+  Autodesk.Viewing.Document.load('urn:' + urn, doc => {
+   const def = doc.getRoot().getDefaultGeometry();
+   viewer.loadDocumentNode(doc, def);
+  }, err => { container.innerHTML = `<div style="padding:24px;color:#f87171">Falha ao abrir URN no APS Viewer (código ${err})</div>`; });
+ });
+}
+
+async function loadSheet(S, fileName, preferredSrc, isPrimary) {
+ S.fileName = fileName;
+ const st = resolveSrc(preferredSrc) || await lookupStorage(fileName);
+ S.marks = fileName ? await fetch(`${API}/api/marks/${encodeURIComponent(fileName)}`).then(r => r.json()).catch(() => []) : [];
+
+ if (st && st.startsWith('aps:') && isPrimary) {
+  await launchApsViewer(st.slice(4));
+  return;
+ }
+ if (isPrimary) {
+  document.getElementById('apsContainer').style.display = 'none';
+  S1.cv.style.display = 'block';
+ }
+
+ const low = (fileName || '').toLowerCase();
+ if (st && (low.endsWith('.pdf') || low.endsWith('.png') || low.endsWith('.jpg') || low.endsWith('.jpeg'))) {
+  S.mode = 'img';
+  if (low.endsWith('.pdf')) {
+   S.pdfDoc = await pdfjsLib.getDocument(st).promise;
+   if (isPrimary) {
+    const ps = document.getElementById('pageSel');
+    if (S.pdfDoc.numPages > 1) {
+     ps.style.display = '';
+     ps.innerHTML = Array.from({ length: S.pdfDoc.numPages }, (_, k) => `<option value="${k+1}">Pág ${k+1}/${S.pdfDoc.numPages}</option>`).join('');
+    } else ps.style.display = 'none';
+   }
+   await renderPdfPage(S, 1);
+  } else {
+   const im = new Image(); im.crossOrigin = 'anonymous';
+   await new Promise((res, rej) => { im.onload = res; im.onerror = rej; im.src = st; });
+   const c2 = document.createElement('canvas'); c2.width = im.naturalWidth; c2.height = im.naturalHeight;
+   c2.getContext('2d').drawImage(im, 0, 0);
+   S.img = c2; S.imgW = c2.width; S.imgH = c2.height;
+   fitSheet(S);
+  }
+ } else if (st && low.endsWith('.dxf')) {
+  S.mode = 'dxf';
+  S.ents = parseDxf(await (await fetch(st)).text());
+  fitSheet(S);
+ }
+}
+
+// Detecção de marcações por cor (HSV + componentes conexos) para scans "-DC"
+function rgbToHsv(r, g, b) {
+ r /= 255; g /= 255; b /= 255;
+ const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+ let h = 0;
+ if (d > 0) {
+  if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) * 60;
+  else if (max === g) h = ((b - r) / d + 2) * 60;
+  else h = ((r - g) / d + 4) * 60;
+ }
+ return [h, max === 0 ? 0 : d / max, max];
+}
+
+async function ingestDcScan() {
+ if (S1.mode !== 'img' || !S1.img) { alert('A detecção óptica de marca-texto requer um PDF ou imagem carregada no painel principal.'); return; }
+ const btn = document.getElementById('dcBtn');
+ btn.disabled = true; btn.textContent = 'Detectando marcas...';
+ try {
+  const W = S1.imgW, H = S1.imgH, step = 3;
+  const gw = Math.ceil(W / step), gh = Math.ceil(H / step);
+  const data = S1.img.getContext('2d').getImageData(0, 0, W, H).data;
+  const grid = new Uint8Array(gw * gh); // 0=none, 1=yellow/green(OK), 2=red(erro), 3=orange(revalidar)
+
+  for (let gy = 0; gy < gh; gy++) {
+   const py = gy * step;
+   for (let gx = 0; gx < gw; gx++) {
+    const px = gx * step, idx = (py * W + px) * 4;
+    const [h, s, v] = rgbToHsv(data[idx], data[idx+1], data[idx+2]);
+    if (v < 0.36 || s < 0.30) continue;
+    if (h >= 40 && h <= 155 && v >= 0.48) grid[gy * gw + gx] = 1;
+    else if ((h < 18 || h >= 336) && s >= 0.38) grid[gy * gw + gx] = 2;
+    else if (h >= 18 && h < 40 && s >= 0.42) grid[gy * gw + gx] = 3;
+   }
+  }
+
+  const vis = new Uint8Array(grid.length);
+  const detected = [];
+  const rad = 3; // agrupa traços próximos da mesma marcação
+  for (let i = 0; i < grid.length; i++) {
+   const cls = grid[i];
+   if (!cls || vis[i]) continue;
+   const stack = [i]; vis[i] = 1;
+   let minX = gw, maxX = 0, minY = gh, maxY = 0, count = 0;
+   while (stack.length) {
+    const cur = stack.pop();
+    const cy = Math.floor(cur / gw), cx = cur - cy * gw;
+    count++;
+    if (cx < minX) minX = cx; if (cx > maxX) maxX = cx;
+    if (cy < minY) minY = cy; if (cy > maxY) maxY = cy;
+    for (let dy = -rad; dy <= rad; dy++) {
+     const ny = cy + dy; if (ny < 0 || ny >= gh) continue;
+     for (let dx = -rad; dx <= rad; dx++) {
+      const nx = cx + dx; if (nx < 0 || nx >= gw) continue;
+      const ni = ny * gw + nx;
+      if (!vis[ni] && grid[ni] === cls) { vis[ni] = 1; stack.push(ni); }
+     }
+    }
+   }
+   const rw = (maxX - minX + 1) * step, rh = (maxY - minY + 1) * step;
+   if (count >= 10 && rw >= 14 && rh >= 10 && rw < W * 0.7 && rh < H * 0.7) {
+    detected.push({ x: minX * step, y: minY * step, w: rw, h: rh, state: cls });
+   }
+  }
+
+  const resp = await fetch(`${API}/api/marks/batch`, {
+   method: 'POST', headers: { 'Content-Type': 'application/json' },
+   body: JSON.stringify({ fileName: S1.fileName, imageWidth: W, imageHeight: H, replaceExisting: true, user: getReviewer(), marks: detected })
+  });
+  if (resp.ok) {
+   const j = await resp.json();
+   await reloadMetadata();
+   drawAll();
+   alert(`Ingestão -DC concluída:\n• ${j.marks} marcações digitais detectadas\n• ${j.findings} pendências de correção geradas`);
+  }
+ } finally {
+  btn.disabled = false; btn.textContent = 'Detectar Marcas (-DC)';
+ }
+}
+
+async function runAiHere() {
+ const btn = document.getElementById('aiBtn');
+ btn.disabled = true; btn.textContent = 'Analisando IA...';
+ try {
+  let resp;
+  if (S1.mode === 'img' && S1.img) {
+   const blob = await new Promise(res => S1.img.toBlob(res, 'image/png'));
+   const fd = new FormData();
+   fd.append('image', blob, S1.fileName.replace(/\.[^.]+$/, '') + '.png');
+   fd.append('fileName', S1.fileName);
+   resp = await fetch(API + '/api/analyze', { method: 'POST', body: fd });
+  } else {
+   resp = await fetch(`${API}/api/analyze-file/${encodeURIComponent(S1.fileName)}`, { method: 'POST' });
+  }
+  if (!resp.ok) { alert(await resp.text()); return; }
+  await reloadMetadata();
+  drawAll();
+ } finally {
+  btn.disabled = false; btn.textContent = 'Analisar com IA';
+ }
+}
+
+function centerOn(f) {
+ const S = (compareFile && f.fileName === S2.fileName) ? S2 : S1;
+ if (S.mode !== 'img' || f.bboxX == null) { drawAll(); return; }
+ const cx = (f.bboxX + (f.bboxW || 0.04) / 2) * S.imgW;
+ const cy = (f.bboxY + (f.bboxH || 0.04) / 2) * S.imgH;
+ const targetZoom = Math.min(Math.max(S.sc, 0.85), 2.2);
+ S.sc = targetZoom;
+ S.vx = S.cv.clientWidth / 2 - cx * S.sc;
+ S.vy = S.cv.clientHeight / 2 - cy * S.sc;
+ drawAll();
+}
+
+async function foco(i) {
+ focus = i;
+ document.querySelectorAll('.fi').forEach((el, j) => el.classList.toggle('on', j === i));
+ const f = findings[i];
+ if (!compareFile && f && (f.fileName || '').includes(' ↔ ')) {
+  const det = f.fileName.split(' ↔ ')[1]?.trim();
+  if (det) { document.getElementById('cmpSel').value = det; await setCompareFile(det); }
+ }
+ centerOn(f);
+}
+
+async function reviewHere(ev, id, action) {
+ ev.stopPropagation();
+ let correctedValue = null;
+ if (action === 'corrected') {
+  correctedValue = prompt('Informe a correção aplicada / valor correto:');
+  if (correctedValue === null) return;
+ }
+ await fetch(`${API}/api/findings/${id}/review`, {
+  method: 'POST', headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ action, reviewer: getReviewer(), correctedValue })
+ });
+ await reloadMetadata();
+ drawAll();
+}
+
+function updateStats() {
+ const active = findings.filter(f => (f.reviewStatus ?? 0) !== 2 && (f.reviewStatus ?? 0) !== 3);
+ const pen = active.reduce((s, f) => s + (f.severity === 3 ? 15 : f.severity === 2 ? 10 : f.severity === 1 ? 5 : 2), 0);
+ const score = Math.max(0, 100 - pen);
+ const cvEl = document.getElementById('confVal');
+ cvEl.textContent = score + '/100';
+ cvEl.style.color = score >= 85 ? '#34d399' : score >= 60 ? '#fbbf24' : '#f87171';
+
+ const okM = S1.marks.filter(m => m.state === 1).length;
+ const errM = S1.marks.filter(m => m.state === 2).length;
+ document.getElementById('st').innerHTML = `${okM} marcas OK · ${errM} erros<br>${findings.length} apontamentos`;
+}
+
+async function reloadMetadata() {
+ S1.marks = mainFile ? await fetch(`${API}/api/marks/${encodeURIComponent(mainFile)}`).then(r => r.json()).catch(() => []) : [];
+ const allF = await fetch(API + '/api/findings').then(r => r.json()).catch(() => []);
+ const pairName = compareFile ? `${mainFile} ↔ ${compareFile}` : '';
+ findings = allF.filter(f =>
+  f.fileName === mainFile ||
+  (compareFile && (f.fileName === compareFile || f.fileName === pairName)) ||
+  (!compareFile && (f.fileName || '').startsWith(mainFile + ' ↔ '))
+ );
+
+ document.getElementById('fl').innerHTML = findings.map((f, i) => {
+  const rs = f.reviewStatus ?? 0;
+  return `<div class="fi ${i===focus?'on':''}" onclick="foco(${i})">
+   <div style="display:flex;justify-content:space-between;gap:6px">
+    <span><span class="sev-${f.severity}">${SN[f.severity] ?? f.severity}</span> · <b>${esc(f.ruleId)}</b></span>
+    <span class="pill ${rs===1||rs===3?'ok':rs===0?'warn':''}">${RN[rs]}</span>
+   </div>
+   <div style="margin-top:4px">${esc(f.description)}</div>
+   ${f.evidence ? `<div style="font-size:11px;color:#94a3b8;margin-top:3px">${esc(f.evidence)}</div>` : ''}
+   ${f.suggestedFix ? `<div style="font-size:11.5px;color:#60a5fa;margin-top:3px">Sugestão: ${esc(f.suggestedFix)}</div>` : ''}
+   <div class="fi-actions">
+    <button onclick="reviewHere(event,'${f.id}','confirmed')">✓ Confirmar</button>
+    <button onclick="reviewHere(event,'${f.id}','corrected')">✎ Corrigir</button>
+    <button onclick="reviewHere(event,'${f.id}','dismissed')">✗ Descartar</button>
+   </div>
+  </div>`;
+ }).join('') || '<div class="fi" style="cursor:default;color:#64748b">Sem apontamentos para este desenho.</div>';
+
+ updateStats();
+}
+
+async function setCompareFile(det) {
+ compareFile = det || '';
+ const p2 = document.getElementById('pane2');
+ if (compareFile) {
+  p2.style.display = 'block';
+  document.getElementById('lbl1').textContent = `Conjunto: ${mainFile}`;
+  document.getElementById('lbl2').textContent = `Detalhe: ${compareFile}`;
+  document.getElementById('t').textContent = `${mainFile} ↔ ${compareFile}`;
+  await loadSheet(S2, compareFile, '', false);
+ } else {
+  p2.style.display = 'none';
+  document.getElementById('lbl1').textContent = mainFile || 'Folha Principal';
+  document.getElementById('t').textContent = mainFile || 'Desenho';
+ }
+ fitSheet(S1);
+ await reloadMetadata();
+}
+
+(async () => {
+ document.getElementById('t').textContent = compareFile ? `${mainFile} ↔ ${compareFile}` : (mainFile || 'Desenho');
+ document.getElementById('lbl1').textContent = mainFile || 'Folha Principal';
+
+ // Preenche seletor de comparação lado a lado com vínculos e demais arquivos
+ const [filesList, linksList] = await Promise.all([
+  fetch(API + '/api/files').then(r => r.json()).catch(() => []),
+  mainFile ? fetch(`${API}/api/links/${encodeURIComponent(mainFile)}`).then(r => r.json()).catch(() => []) : Promise.resolve([])
+ ]);
+ const linkedFiles = linksList.filter(l => l.detailFileName).map(l => ({ name: l.detailFileName, label: `[${l.marca}] ${l.detailFileName}` }));
+ const otherFiles = filesList.filter(f => f.fileName !== mainFile && !linkedFiles.some(x => x.name === f.fileName)).map(f => ({ name: f.fileName, label: f.fileName }));
+ const cmpSel = document.getElementById('cmpSel');
+ [...linkedFiles, ...otherFiles].forEach(o => {
+  const opt = document.createElement('option'); opt.value = o.name; opt.textContent = o.label; cmpSel.appendChild(opt);
+ });
+ if (compareFile) cmpSel.value = compareFile;
+
+ await loadSheet(S1, mainFile, explicitSrc, true);
+ if (compareFile) await setCompareFile(compareFile);
+ else await reloadMetadata();
 })();
-</script></body></html>
+</script>
+</body>
+</html>

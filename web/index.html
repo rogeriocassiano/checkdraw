@@ -1,132 +1,1084 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="utf-8"><title>CheckDraw — Conferência de desenhos</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CheckDraw — Conferência Assistida de Desenhos Técnicos</title>
 <style>
  *{box-sizing:border-box;margin:0}
- body{font-family:'Segoe UI',system-ui,sans-serif;background:#0b0e15;color:#e2e8f0;min-height:100vh}
- header{background:linear-gradient(90deg,#0f172a,#1e293b);padding:16px 28px;display:flex;align-items:center;gap:16px;border-bottom:1px solid #334155}
- .logo{font-size:20px;font-weight:700;color:#60a5fa}
- .logo span{color:#34d399}
- .sub{font-size:12px;color:#64748b}
- main{max-width:1200px;margin:24px auto;padding:0 20px}
- .card{background:#111827;border:1px solid #1f2937;border-radius:12px;padding:20px;margin-bottom:20px}
- .card h2{font-size:14px;color:#94a3b8;margin-bottom:14px;text-transform:uppercase;letter-spacing:.06em}
- .drop{border:2px dashed #334155;border-radius:10px;padding:28px;text-align:center;color:#64748b;cursor:pointer;transition:.2s}
- .drop:hover,.drop.on{border-color:#3b82f6;color:#93c5fd;background:#1e3a8a22}
- button{background:#2563eb;border:0;color:#fff;padding:9px 18px;border-radius:8px;cursor:pointer;font-weight:600}
+ :root{
+  --bg:#0b0e15;--panel:#111827;--panel2:#182234;--border:#1f2937;--border2:#334155;
+  --txt:#e2e8f0;--muted:#94a3b8;--dim:#64748b;
+  --blue:#3b82f6;--blue2:#2563eb;--green:#34d399;--amber:#fbbf24;--red:#f87171;--orange:#fb923c;
+ }
+ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--txt);min-height:100vh}
+ header{background:linear-gradient(90deg,#0f172a,#1e293b);padding:14px 24px;display:flex;align-items:center;gap:16px;border-bottom:1px solid var(--border2);flex-wrap:wrap}
+ .logo{font-size:20px;font-weight:700;color:#60a5fa;letter-spacing:-.02em}
+ .logo span{color:var(--green)}
+ .sub{font-size:12px;color:var(--muted)}
+ .hdr-right{margin-left:auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+ .sys-pill{font-size:11px;padding:4px 10px;border-radius:99px;background:#0f172a;border:1px solid var(--border2);color:var(--muted)}
+ .sys-pill b{color:var(--green)}
+ nav.tabs{max-width:1360px;margin:16px auto 0;padding:0 20px;display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid var(--border)}
+ nav.tabs button{background:transparent;color:var(--muted);border:1px solid transparent;border-bottom:2px solid transparent;border-radius:8px 8px 0 0;padding:10px 16px;font-size:13px;font-weight:600;cursor:pointer}
+ nav.tabs button:hover{color:var(--txt);background:#1e293b55}
+ nav.tabs button.active{color:#60a5fa;border-color:var(--border);border-bottom-color:#60a5fa;background:var(--panel)}
+ main{max-width:1360px;margin:18px auto 48px;padding:0 20px}
+ .tab-pane{display:none}.tab-pane.active{display:block}
+ .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:18px}
+ .kpi{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
+ .kpi .lbl{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em}
+ .kpi .val{font-size:24px;font-weight:700;margin-top:4px}
+ .kpi .hint{font-size:11px;color:var(--muted);margin-top:3px}
+ .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:18px}
+ .card-hdr{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+ .card h2{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+ .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+ @media(max-width:920px){.grid2{grid-template-columns:1fr}}
+ .drop{border:2px dashed var(--border2);border-radius:10px;padding:22px;text-align:center;color:var(--muted);cursor:pointer;transition:.18s}
+ .drop:hover,.drop.on{border-color:var(--blue);color:#93c5fd;background:#1e3a8a22}
+ button{background:var(--blue2);border:0;color:#fff;padding:8px 14px;border-radius:7px;cursor:pointer;font-weight:600;font-size:12.5px;transition:.15s}
  button:hover{background:#1d4ed8}
- button.sec{background:#1f2937}
+ button:disabled{opacity:.45;cursor:not-allowed}
+ button.sec{background:#1f2937;border:1px solid #374151;color:var(--txt)}
+ button.sec:hover{background:#283548}
+ button.warn-btn{background:#78350f;color:#fde68a;border:1px solid #92400e}
+ button.danger-btn{background:#7f1d1d;color:#fecaca;border:1px solid #991b1b}
+ button.ok-btn{background:#065f46;color:#a7f3d0;border:1px solid #047857}
+ button.xs{padding:4px 8px;font-size:11.5px;border-radius:6px}
+ input[type=text],select,textarea{background:#1f2937;border:1px solid #374151;color:var(--txt);padding:7px 11px;border-radius:7px;font-size:13px;font-family:inherit}
+ textarea{width:100%;min-height:68px;resize:vertical}
  table{width:100%;border-collapse:collapse}
- th,td{padding:9px 12px;text-align:left;border-bottom:1px solid #1f2937;font-size:13px}
- th{color:#64748b;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.05em}
- tr:hover td{background:#1e293b}
- .pill{padding:3px 10px;border-radius:99px;font-size:11px;font-weight:600}
- .ok{background:#064e3b;color:#34d399}.corrupt{background:#7f1d1d;color:#fca5a5}
- .warn{background:#78350f;color:#fbbf24}.sem{background:#374151;color:#9ca3af}
+ th,td{padding:9px 10px;text-align:left;border-bottom:1px solid var(--border);font-size:12.5px;vertical-align:top}
+ th{color:var(--dim);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.05em}
+ tr:hover td{background:#182234}
+ .pill{display:inline-block;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:600;white-space:nowrap}
+ .ok{background:#064e3b;color:var(--green)}
+ .corrupt{background:#7f1d1d;color:#fca5a5}
+ .warn{background:#78350f;color:var(--amber)}
+ .orange{background:#7c2d12;color:#fdba74}
+ .info{background:#1e3a8a;color:#93c5fd}
+ .sem{background:#374151;color:#cbd5e1}
  .score{font-weight:700;color:#f59e0b}
- .sev-Error,.sev-Critical{color:#f87171;font-weight:700}.sev-Warning{color:#fbbf24}.sev-Info{color:#60a5fa}
- #status{font-size:13px;color:#34d399;margin-left:8px}
- .grid{display:grid;grid-template-columns:2fr 1fr;gap:20px}
- input[type=text]{background:#1f2937;border:1px solid #374151;color:#e2e8f0;padding:8px 12px;border-radius:8px}
+ .sev-2,.sev-3,.sev-Error,.sev-Critical{color:var(--red);font-weight:700}
+ .sev-1,.sev-Warning{color:var(--amber);font-weight:600}
+ .sev-0,.sev-Info{color:#60a5fa}
+ .job-bar{display:none;background:#172554;border:1px solid #2563eb;color:#bfdbfe;padding:10px 16px;border-radius:9px;margin-bottom:16px;font-size:13px;align-items:center;justify-content:space-between;gap:12px}
+ .job-bar.show{display:flex}
+ .filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
+ .principle{font-size:11.5px;color:var(--muted);background:#0f172a;border-left:3px solid #3b82f6;padding:8px 12px;border-radius:4px;margin-bottom:14px}
+ a.lnk{color:#60a5fa;text-decoration:none;font-weight:600}
+ a.lnk:hover{text-decoration:underline}
+ .mono{font-family:Consolas,monospace;font-size:12px}
 </style>
 </head>
 <body>
 <header>
- <div class="logo">Check<span>Draw</span></div>
- <div class="sub">Conferência de lotes de desenhos técnicos</div>
- <div style="margin-left:auto"><span id="status"></span></div>
+ <div>
+  <div class="logo">Check<span>Draw</span></div>
+  <div class="sub">Conferência inteligente de desenhos e pacotes técnicos · Sem aprovação automática</div>
+ </div>
+ <div class="hdr-right">
+  <label style="font-size:12px;color:var(--muted)">Conferente:
+   <input type="text" id="reviewer" placeholder="Nome / Registro" style="width:155px;margin-left:4px">
+  </label>
+  <span class="sys-pill" id="healthPill">Conectando API...</span>
+  <span id="status" style="font-size:12.5px;color:var(--green)"></span>
+ </div>
 </header>
+
+<nav class="tabs">
+ <button class="active" onclick="openTab('triage',this)">1. Triagem &amp; Lotes</button>
+ <button onclick="openTab('findings',this)">2. Apontamentos (<span id="cntOpen">0</span>)</button>
+ <button onclick="openTab('cross',this)">3. Conjunto × Detalhe (<span id="cntLinks">0</span>)</button>
+ <button onclick="openTab('revs',this)">4. Revisões, Lista Mestra &amp; Liberação</button>
+ <button onclick="openTab('rules',this)">5. Checklist, Relatórios &amp; Auditoria</button>
+</nav>
+
 <main>
- <div class="card">
-  <h2>Novo lote</h2>
-  <div class="drop" id="drop">Arraste os arquivos aqui<br><small>ou clique para selecionar (DWG, DXF, PDF — até centenas)</small>
-   <input id="files" type="file" multiple hidden></div>
-  <div style="margin-top:14px;display:flex;gap:10px;align-items:center">
-   <input type="text" id="supplier" placeholder="Fornecedor (opcional)">
-   <button onclick="upload()">Importar lote</button>
-   <button class="sec" onclick="load()">Atualizar</button>
+ <div class="job-bar" id="jobBar">
+  <div><b id="jobTitle">Processando job...</b> — <span id="jobProg">aguardando fila</span></div>
+  <span class="mono" id="jobIdLbl"></span>
+ </div>
+
+ <!-- ABA 1: TRIAGEM & LOTES -->
+ <section class="tab-pane active" id="tab-triage">
+  <div class="kpis">
+   <div class="kpi"><div class="lbl">Arquivos no Lote</div><div class="val" id="kFiles">0</div><div class="hint" id="kFilesSub">0 entregáveis · 0 scans -DC</div></div>
+   <div class="kpi"><div class="lbl">Conformidade Média</div><div class="val" id="kConf" style="color:var(--green)">100%</div><div class="hint">ponderada por severidade ativa</div></div>
+   <div class="kpi"><div class="lbl">Apontamentos Abertos</div><div class="val" id="kOpen" style="color:var(--amber)">0</div><div class="hint" id="kCritSub">0 críticos ativos</div></div>
+   <div class="kpi"><div class="lbl">Vínculos Conjunto×Detalhe</div><div class="val" id="kLinks">0</div><div class="hint" id="kLinksSub">0 ausentes · 0 divergentes</div></div>
+   <div class="kpi"><div class="lbl">Revisões Autorizadas</div><div class="val" id="kAuth" style="color:#60a5fa">0</div><div class="hint">fabricação / montagem (CA-04)</div></div>
   </div>
-  <div class="drop" id="apsdrop" style="margin-top:12px;border-color:#60a5fa">☁ <b>DWG → AutoCAD na nuvem (APS)</b><br><small>clique para enviar um .dwg — o APS traduz e devolve URN do viewer</small>
-   <input id="apsfile" type="file" accept=".dwg,.dxf" hidden></div>
-  <div id="apsStatus" style="font-size:12px;color:#94a3b8;margin-top:8px"></div>
- </div>
- <div class="card">
-  <h2>Fila de conferência — ordenada por risco</h2>
-  <table><thead><tr><th>Score</th><th>Arquivo</th><th>Código</th><th>Rev</th><th>Saúde</th><th>Estado</th></tr></thead><tbody id="q"></tbody></table>
- </div>
- <div class="card">
-  <h2>Apontamentos — revisão humana</h2>
-  <table><thead><tr><th>Sev</th><th>Regra</th><th>Arquivo</th><th>Descrição</th><th>Fonte</th><th>Status</th><th>Ação</th></tr></thead><tbody id="f"></tbody></table>
- </div>
- <div class="card">
-  <h2>Regras / Checklist</h2>
-  <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
-   <input type="text" id="nc" placeholder="CODIGO" style="width:110px">
-   <input type="text" id="ncat" placeholder="categoria" style="width:120px">
-   <input type="text" id="nd" placeholder="descrição do critério" style="flex:1;min-width:220px">
-   <input type="text" id="nh" placeholder="dica p/ IA (opcional)" style="flex:1;min-width:180px">
-   <button class="sec" onclick="addRule()">+ Adicionar regra</button>
+
+  <div class="grid2">
+   <div class="card">
+    <div class="card-hdr"><h2>Importar Pacote (DWG, DXF, PDF, Scans -DC)</h2></div>
+    <div class="drop" id="drop">Arraste os arquivos do pacote aqui ou clique para selecionar<br><small>Suporta entregáveis (.dwg, .dxf, .pdf) e scans conferidos (*-DC.pdf)</small>
+     <input id="files" type="file" multiple hidden>
+    </div>
+    <div style="margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+     <input type="text" id="supplier" placeholder="Fornecedor / Projetista" style="flex:1;min-width:150px">
+     <input type="text" id="contractName" placeholder="Contrato (padrão)" style="width:160px">
+     <button onclick="upload()">Importar Lote</button>
+     <button class="sec" onclick="loadAll()">Atualizar</button>
+    </div>
+   </div>
+
+   <div class="card">
+    <div class="card-hdr"><h2>DWG Nativo na Nuvem (Autodesk APS SVF2)</h2></div>
+    <div class="drop" id="apsdrop" style="border-color:#3b82f688">Clique ou solte um arquivo <b>.dwg / .dxf</b> para tradução no Autodesk APS<br><small>Converte em SVF2 na nuvem e habilita inspeção 2D/3D sem AutoCAD local</small>
+     <input id="apsfile" type="file" accept=".dwg,.dxf" hidden>
+    </div>
+    <div id="apsStatus" style="font-size:12px;color:var(--muted);margin-top:10px">Pronto para envio.</div>
+   </div>
   </div>
-  <table><thead><tr><th>Código</th><th>Categoria</th><th>Descrição</th><th>Sev</th><th>IA</th></tr></thead><tbody id="c"></tbody></table>
- </div>
+
+  <div class="card">
+   <div class="card-hdr">
+    <h2>Fila de Conferência — Ordenada por Risco</h2>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+     <button class="ok-btn" onclick="analyzeAll()">Analisar PDFs com IA (Lote)</button>
+     <button class="warn-btn" onclick="purgeOpenAi()">Limpar Achados IA Abertos</button>
+    </div>
+   </div>
+   <div style="overflow-x:auto">
+    <table>
+     <thead>
+      <tr><th>Risco</th><th>Conformidade</th><th>Arquivo</th><th>Código</th><th>Rev</th><th>Saúde</th><th>Identificação</th><th>Resumo</th><th>Ações</th></tr>
+     </thead>
+     <tbody id="q"></tbody>
+    </table>
+   </div>
+  </div>
+ </section>
+
+ <!-- ABA 2: APONTAMENTOS (REVISÃO HUMANA) -->
+ <section class="tab-pane" id="tab-findings">
+  <div class="card">
+   <div class="card-hdr">
+    <h2>Apontamentos — Decisão Humana Auditada</h2>
+    <div style="display:flex;gap:8px">
+     <button class="sec xs" onclick="purgeOpenAi()">Limpar IA sem veredito</button>
+     <button class="sec xs" onclick="loadAll()">Recarregar</button>
+    </div>
+   </div>
+   <div class="principle">
+    <b>Princípio CheckDraw:</b> apontamentos de IA nascem como <i>suspeita</i> com evidência. Nenhum apontamento aprova ou reprova sozinho — confirme, corrija (retroalimentando o contexto da IA) ou descarte falsos positivos.
+   </div>
+   <div class="filters">
+    <input type="text" id="fSearch" placeholder="Filtrar por arquivo, código, regra ou texto..." style="flex:1;min-width:220px" oninput="renderFindings()">
+    <select id="fSev" onchange="renderFindings()">
+     <option value="all">Severidade: Todas</option>
+     <option value="high">Crítico + Erro</option>
+     <option value="3">Apenas Crítico</option>
+     <option value="2">Apenas Erro</option>
+     <option value="1">Apenas Alerta</option>
+     <option value="0">Apenas Info / Match</option>
+    </select>
+    <select id="fStat" onchange="renderFindings()">
+     <option value="all">Status: Todos</option>
+     <option value="0">Abertos (pendentes)</option>
+     <option value="1">Confirmados</option>
+     <option value="3">Corrigidos</option>
+     <option value="2">Descartados</option>
+    </select>
+    <select id="fSrc" onchange="renderFindings()">
+     <option value="all">Origem: Todas</option>
+     <option value="ai">IA (Gemini)</option>
+     <option value="rule">Regras Determinísticas</option>
+     <option value="xchk">Cruzamento (XCHK)</option>
+     <option value="scan">Scan Conferido (-DC)</option>
+    </select>
+   </div>
+   <div style="overflow-x:auto">
+    <table>
+     <thead><tr><th>Sev</th><th>Regra</th><th>Arquivo / Par</th><th>Descrição &amp; Evidência</th><th>Origem</th><th>Status</th><th>Veredito Humano</th></tr></thead>
+     <tbody id="f"></tbody>
+    </table>
+   </div>
+  </div>
+ </section>
+
+ <!-- ABA 3: CRUZAMENTO CONJUNTO × DETALHE -->
+ <section class="tab-pane" id="tab-cross">
+  <div class="card">
+   <div class="card-hdr">
+    <h2>Cruzamento Conjunto ↔ Detalhe (Quadro de Aplicação + Comparação IA)</h2>
+   </div>
+   <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
+    <label style="font-size:12.5px;color:var(--muted)">Desenho de Conjunto:</label>
+    <select id="asmSelect" onchange="loadAssemblyLinks()" style="min-width:280px"></select>
+    <button onclick="runCrosscheck()">1. Ler Quadro de Aplicação</button>
+    <button class="ok-btn" onclick="runCrossCompareAll()">2. Comparar Todos os Pares (IA)</button>
+   </div>
+   <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding-top:10px;border-top:1px solid var(--border);margin-bottom:14px">
+    <span style="font-size:12px;color:var(--dim)">Vínculo manual:</span>
+    <input type="text" id="lmMarca" placeholder="Marca (ex: 07-516-001)" style="width:155px">
+    <input type="text" id="lmCode" placeholder="Código Detalhe (ex: AA3112M...)" style="width:200px">
+    <input type="text" id="lmQty" placeholder="Qtd" style="width:68px">
+    <input type="text" id="lmWeight" placeholder="Peso kg" style="width:85px">
+    <button class="sec xs" onclick="addManualLink()">+ Vincular</button>
+   </div>
+   <div style="overflow-x:auto">
+    <table>
+     <thead><tr><th>Marca / Posição</th><th>Qtd</th><th>Peso Unit.</th><th>Código Declarado</th><th>Arquivo Encontrado no Pacote</th><th>Status</th><th>Ações</th></tr></thead>
+     <tbody id="linksBody"></tbody>
+    </table>
+   </div>
+  </div>
+
+  <div class="card">
+   <div class="card-hdr">
+    <h2>Resultados da Comparação Cruzada (XCHK)</h2>
+    <label style="font-size:12px;color:var(--muted)"><input type="checkbox" id="hideMatches" onchange="renderCrossFindings()"> Ocultar itens conformes (Info/Match)</label>
+   </div>
+   <div style="overflow-x:auto">
+    <table>
+     <thead><tr><th>Sev</th><th>Marca</th><th>Par (Conjunto ↔ Detalhe)</th><th>Comparação &amp; Evidência nas 2 Folhas</th><th>Status</th><th>Ação</th></tr></thead>
+     <tbody id="xchkBody"></tbody>
+    </table>
+   </div>
+  </div>
+ </section>
+
+ <!-- ABA 4: REVISÕES, LISTA MESTRA & LIBERAÇÃO -->
+ <section class="tab-pane" id="tab-revs">
+  <div class="card">
+   <div class="card-hdr">
+    <h2>Controle de Revisões &amp; Autorização por Finalidade (CA-04 / CA-05)</h2>
+    <button class="sec xs" onclick="syncRevisions()">Sincronizar Revisões dos Arquivos</button>
+   </div>
+   <div class="principle">
+    <b>Regra CA-04 &amp; CA-05:</b> revisão recebida <i>não</i> está liberada por ser a mais recente. Revisões marcadas em Vermelho (correção necessária) ou com apontamentos Crítico/Erro abertos ficam bloqueadas para Fabricação e Montagem até revalidação humana.
+   </div>
+   <div style="overflow-x:auto">
+    <table>
+     <thead><tr><th>Documento</th><th>Rev</th><th>Arquivo Fonte</th><th>Bloqueios</th><th>Estado de Conferência</th><th>Autorização Formal</th></tr></thead>
+     <tbody id="revsBody"></tbody>
+    </table>
+   </div>
+  </div>
+
+  <div class="grid2">
+   <div class="card">
+    <div class="card-hdr"><h2>Emissão Controlada &amp; Transferência de Marcas</h2></div>
+    <div style="margin-bottom:16px">
+     <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Avaliar / Registrar Emissão Formal (RF-06):</div>
+     <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <input type="text" id="relCode" placeholder="Código (ex: AA3112M...)" style="flex:1">
+      <input type="text" id="relRev" placeholder="Rev" style="width:70px">
+      <select id="relPurpose">
+       <option value="0">Fabricação</option>
+       <option value="1">Montagem</option>
+       <option value="2">Consulta</option>
+      </select>
+      <button onclick="tryRelease()">Avaliar Emissão</button>
+     </div>
+     <div id="relOut" style="font-size:12.5px;margin-top:8px"></div>
+    </div>
+    <div style="padding-top:12px;border-top:1px solid var(--border);margin-bottom:14px">
+     <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Transferir Marcas entre Revisões (DXF/DWG):</div>
+     <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <input type="text" id="trCode" placeholder="Código" style="flex:1">
+      <input type="text" id="trFrom" placeholder="De Rev" style="width:78px">
+      <input type="text" id="trTo" placeholder="Para Rev" style="width:78px">
+      <button class="sec" onclick="runTransfer()">Transferir</button>
+     </div>
+     <div id="trOut" style="font-size:12px;color:var(--muted);margin-top:6px"></div>
+    </div>
+    <h2 style="margin-bottom:8px">Últimas Tentativas de Emissão</h2>
+    <table>
+     <thead><tr><th>Data</th><th>Doc / Rev</th><th>Finalidade</th><th>Decisão</th><th>Motivo</th></tr></thead>
+     <tbody id="releasesBody"></tbody>
+    </table>
+   </div>
+
+   <div class="card">
+    <div class="card-hdr">
+     <h2>Lista Mestra do Contrato (ML-001 / ML-002)</h2>
+     <button class="ok-btn xs" onclick="validateMasterList()">Validar Lote × Lista Mestra</button>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+     <input type="text" id="mlCode" placeholder="Código" style="width:150px">
+     <input type="text" id="mlRev" placeholder="Rev Esp." style="width:80px">
+     <input type="text" id="mlTitle" placeholder="Título (opcional)" style="flex:1">
+     <button class="sec xs" onclick="addMasterItem()">+ Adicionar</button>
+    </div>
+    <details style="margin-bottom:12px;font-size:12px;color:var(--muted)">
+     <summary style="cursor:pointer">Importar várias linhas (CODIGO;REV;TITULO)</summary>
+     <textarea id="mlBulk" placeholder="AA3112M0003110;E;Arranjo Geral Tubulação&#10;AA3112M0003270;B;Suporte Guia" style="margin-top:6px"></textarea>
+     <button class="sec xs" style="margin-top:6px" onclick="importMasterBulk()">Importar Linhas</button>
+    </details>
+    <div style="max-height:300px;overflow-y:auto">
+     <table>
+      <thead><tr><th>Código</th><th>Rev Esperada</th><th>Título</th><th></th></tr></thead>
+      <tbody id="mlBody"></tbody>
+     </table>
+    </div>
+   </div>
+  </div>
+ </section>
+
+ <!-- ABA 5: CHECKLIST, RELATÓRIOS & AUDITORIA -->
+ <section class="tab-pane" id="tab-rules">
+  <div class="card">
+   <div class="card-hdr">
+    <h2>Regras / Checklist de Conferência</h2>
+    <button class="sec xs" onclick="seedDefaults()">Restaurar Regras Padrão de Engenharia</button>
+   </div>
+   <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+    <input type="text" id="nc" placeholder="CÓDIGO (ex: SOL-02)" style="width:135px">
+    <input type="text" id="ncat" placeholder="Categoria" style="width:120px">
+    <select id="nsev">
+     <option value="1">Alerta</option>
+     <option value="2">Erro</option>
+     <option value="3">Crítico</option>
+     <option value="0">Info</option>
+    </select>
+    <input type="text" id="nd" placeholder="Descrição do critério técnico" style="flex:1;min-width:220px">
+    <input type="text" id="nh" placeholder="Dica para a IA verificar na folha (ativa IA)" style="flex:1;min-width:200px">
+    <button onclick="addRule()">+ Adicionar Regra</button>
+   </div>
+   <div style="overflow-x:auto">
+    <table><thead><tr><th>Código</th><th>Categoria</th><th>Descrição &amp; Orientação IA</th><th>Severidade</th><th>IA</th><th></th></tr></thead><tbody id="c"></tbody></table>
+   </div>
+  </div>
+
+  <div class="grid2">
+   <div class="card">
+    <div class="card-hdr">
+     <h2>Relatório Consolidado de Pendências &amp; Índice</h2>
+     <div style="display:flex;gap:8px">
+      <button onclick="openPrintableReport()">Imprimir / Salvar PDF</button>
+      <button class="sec" onclick="exportCsv()">Exportar CSV</button>
+     </div>
+    </div>
+    <div id="repSummary" style="font-size:13px;color:var(--muted);line-height:1.7">Carregando dados do relatório...</div>
+   </div>
+
+   <div class="card">
+    <div class="card-hdr">
+     <h2>Trilha de Auditoria</h2>
+     <button class="sec xs" onclick="loadAudit()">Atualizar</button>
+    </div>
+    <div style="max-height:320px;overflow-y:auto">
+     <table>
+      <thead><tr><th>Data/Hora</th><th>Ação</th><th>Usuário</th><th>Detalhe</th></tr></thead>
+      <tbody id="auditBody"></tbody>
+     </table>
+    </div>
+   </div>
+  </div>
+ </section>
 </main>
+
 <script>
-const API='https://checkdraw-production.up.railway.app';
-const drop=document.getElementById('drop'),files=document.getElementById('files');
-drop.onclick=()=>files.click();
-['dragover','dragenter'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.add('on')}));
-['dragleave','drop'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.remove('on')}));
-drop.ondrop=ev=>{files.files=ev.dataTransfer.files;drop.innerHTML=files.files.length+' arquivo(s) selecionado(s)'};
-files.onchange=()=>{if(files.files.length)drop.innerHTML=files.files.length+' arquivo(s) selecionado(s)'};
-const st=t=>document.getElementById('status').textContent=t;
-async function upload(){
- if(!files.files.length){alert('selecione os arquivos');return}
- st('importando...');
- const fd=new FormData();
- for(const f of files.files)fd.append('files',f);
- fd.append('supplier',document.getElementById('supplier').value);
- try{const r=await fetch(API+'/api/upload',{method:'POST',body:fd});
-  const j=await r.json();
-  st(`importado: ${j.files} arquivos, ${j.findings} apontamentos`);load()}
- catch(e){st('erro: '+e)}
+const QP = new URLSearchParams(location.search);
+const API = QP.get('api') || localStorage.getItem('cd_api') ||
+ ((location.hostname === 'localhost' || location.hostname === '127.0.0.1') && location.port ? location.origin : 'https://checkdraw-production.up.railway.app');
+
+const SN = ['Info','Alerta','Erro','Crítico'];
+const RN = ['aberto','confirmado','descartado','corrigido'];
+const PN = ['Fabricação','Montagem','Consulta'];
+const STATE_LBL = ['Sem marcação','Amarelo (Verificado)','Vermelho (Correção)','Laranja (Revalidar)'];
+const STATE_CLS = ['sem','ok','corrupt','orange'];
+
+let queueData = [], findingsData = [], allLinks = [], allFiles = [], revisionsData = [], reportCache = null;
+
+const revInput = document.getElementById('reviewer');
+revInput.value = localStorage.getItem('cd_reviewer') || 'Conferente';
+revInput.onchange = () => localStorage.setItem('cd_reviewer', revInput.value.trim() || 'Conferente');
+const getReviewer = () => (revInput.value.trim() || 'Conferente');
+
+const st = t => document.getElementById('status').textContent = t;
+const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+
+function resolveSrc(storagePath) {
+ if (!storagePath) return '';
+ if (storagePath.startsWith('http') || storagePath.startsWith('aps:')) return storagePath;
+ if (storagePath.startsWith('/')) return API + storagePath;
+ return storagePath;
 }
-async function load(){
- try{
-  const q=await (await fetch(API+'/api/queue')).json();
-  document.getElementById('q').innerHTML=q.map(x=>`<tr><td class=score>${x.score}</td><td>${x.fileName}</td><td>${x.code??'—'}</td><td>${x.rev??'—'}</td><td><span class="pill ${x.health==='Ok'?'ok':x.health==='Corrupt'?'corrupt':'warn'}">${x.health}</span></td><td><span class="pill sem">${x.id}</span></td><td>${x.storage?`<a href="viewer.html?file=${encodeURIComponent(x.fileName)}&src=${encodeURIComponent(x.storage)}" style="color:#60a5fa">👁</a>`:''}</td></tr>`).join('')||'<tr><td colspan=6 style="color:#64748b">nenhum lote importado</td></tr>';
-  const f=await (await fetch(API+'/api/findings')).json();
-  const SN=['Info','Alerta','Erro','Crítico'],RN=['aberto','confirmado','descartado','corrigido'];
-  document.getElementById('f').innerHTML=f.map(x=>`<tr>
-   <td class="sev-${x.severity}">${SN[x.severity]??x.severity}</td>
-   <td>${x.ruleId}</td><td>${x.fileName??''} ${x.fileName?`<a href="viewer.html?file=${encodeURIComponent(x.fileName)}" style="color:#60a5fa" title="ver no desenho">🔍</a>`:''}</td><td>${x.description}${x.suggestedFix?`<br><small style="color:#60a5fa">💡 ${x.suggestedFix}</small>`:''}</td>
-   <td>${x.source===1||x.source==='Ai'?'IA':'regra'}</td>
-   <td><span class="pill ${x.reviewStatus===1?'ok':x.reviewStatus===2?'sem':'warn'}">${RN[x.reviewStatus??0]}</span></td>
-   <td>${x.reviewStatus===0?`<button class="sec" style="padding:4px 8px" onclick="rev('${x.id}','confirmed')">✓</button> <button class="sec" style="padding:4px 8px" onclick="rev('${x.id}','dismissed')">✗</button>`:''}</td>
-  </tr>`).join('')||'<tr><td colspan=7 style="color:#64748b">sem apontamentos</td></tr>';
-  const c=await (await fetch(API+'/api/checklist')).json();
-  document.getElementById('c').innerHTML=c.map(x=>`<tr><td>${x.code}</td><td>${x.category}</td><td>${x.description}${x.aiPromptHint?`<br><small style="color:#64748b">${x.aiPromptHint}</small>`:''}</td><td>${SN[x.severity]??x.severity}</td><td>${x.aiCheckable?'✓':'—'}</td></tr>`).join('');
- }catch(e){st('API offline: '+e)}
+
+function viewerHref(fileName, storagePath, compareFile) {
+ if (fileName && fileName.includes(' ↔ ')) {
+  const [a, d] = fileName.split(' ↔ ').map(s => s.trim());
+  return `viewer.html?file=${encodeURIComponent(a)}&compare=${encodeURIComponent(d)}${QP.get('api') ? '&api='+encodeURIComponent(API) : ''}`;
+ }
+ let u = `viewer.html?file=${encodeURIComponent(fileName || '')}`;
+ if (storagePath) u += `&src=${encodeURIComponent(resolveSrc(storagePath))}`;
+ if (compareFile) u += `&compare=${encodeURIComponent(compareFile)}`;
+ if (QP.get('api')) u += `&api=${encodeURIComponent(API)}`;
+ return u;
 }
-const apsd=document.getElementById('apsdrop'),apsf=document.getElementById('apsfile'),apsst=document.getElementById('apsStatus');
-apsd.onclick=()=>apsf.click();
-apsf.onchange=async()=>{
- const f=apsf.files[0];if(!f)return;
- apsst.textContent=`enviando ${f.name} para o APS…`;
- const fd=new FormData();fd.append('files',f);
- try{
-  const r=await(await fetch(API+'/api/aps/translate',{method:'POST',body:fd})).json();
-  apsst.innerHTML=r.error?`⚠ ${r.error}`:`✓ ${r.name} → URN <code>${(r.urn||'').slice(0,32)}…</code> — tradução no job ${r.jobId?.slice(0,8)} (veja /api/jobs)`;
- }catch(e){apsst.textContent='erro: '+e}
+
+function openTab(name, btn) {
+ document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+ document.querySelectorAll('nav.tabs button').forEach(b => b.classList.remove('active'));
+ document.getElementById('tab-' + name).classList.add('active');
+ if (btn) btn.classList.add('active');
+ if (name === 'rules') { loadAudit(); loadReport(); }
+}
+
+async function pollJob(jobId, title, onDone) {
+ const bar = document.getElementById('jobBar');
+ bar.classList.add('show');
+ document.getElementById('jobTitle').textContent = title;
+ document.getElementById('jobIdLbl').textContent = 'job ' + String(jobId).slice(0, 8);
+ for (let i = 0; i < 240; i++) {
+  await new Promise(r => setTimeout(r, 1500));
+  try {
+   const r = await fetch(`${API}/api/jobs/${jobId}`);
+   if (!r.ok) break;
+   const j = await r.json();
+   document.getElementById('jobProg').textContent = j.progress || j.status;
+   if (j.status === 'done') {
+    bar.classList.remove('show');
+    st(`${title}: concluído`);
+    await loadAll();
+    if (onDone) onDone(j.result);
+    return;
+   }
+   if (j.status === 'error') {
+    bar.classList.remove('show');
+    st(`Erro no job: ${j.error}`);
+    alert(`Falha em "${title}":\n${j.error}`);
+    return;
+   }
+  } catch {}
+ }
+ bar.classList.remove('show');
+}
+
+// Drag & Drop Lote
+const drop = document.getElementById('drop'), files = document.getElementById('files');
+drop.onclick = () => files.click();
+['dragover','dragenter'].forEach(e => drop.addEventListener(e, ev => { ev.preventDefault(); drop.classList.add('on'); }));
+['dragleave','drop'].forEach(e => drop.addEventListener(e, ev => { ev.preventDefault(); drop.classList.remove('on'); }));
+drop.ondrop = ev => { files.files = ev.dataTransfer.files; showSelectedFiles(); };
+files.onchange = showSelectedFiles;
+function showSelectedFiles() {
+ if (!files.files.length) return;
+ const dc = [...files.files].filter(f => /(?:^|[\s_-])dc(?:\.[^.]+)?$/i.test(f.name)).length;
+ drop.innerHTML = `<b>${files.files.length} arquivo(s) selecionado(s)</b>` + (dc ? ` <span class="pill info">${dc} scan(s) -DC</span>` : '');
+}
+
+async function upload() {
+ if (!files.files.length) { alert('Selecione os arquivos do lote primeiro.'); return; }
+ st('Enviando arquivos...');
+ const fd = new FormData();
+ for (const f of files.files) fd.append('files', f);
+ fd.append('supplier', document.getElementById('supplier').value);
+ fd.append('contract', document.getElementById('contractName').value || 'Contrato padrão');
+ try {
+  const r = await fetch(API + '/api/upload', { method: 'POST', body: fd });
+  if (!r.ok) { st('Erro: ' + await r.text()); return; }
+  const j = await r.json();
+  if (j.jobId) {
+   await pollJob(j.jobId, `Importação de ${j.filesCount || files.files.length} arquivo(s)`, res => {
+    if (res) st(`Lote importado: ${res.files} arquivos, ${res.findings} apontamentos, ${res.revisions} revisões`);
+   });
+  } else {
+   st(`Importado: ${j.files ?? 0} arquivos`);
+   await loadAll();
+  }
+ } catch (e) { st('Erro no envio: ' + e); }
+}
+
+// Drag & Drop APS DWG
+const apsd = document.getElementById('apsdrop'), apsf = document.getElementById('apsfile'), apsst = document.getElementById('apsStatus');
+apsd.onclick = () => apsf.click();
+['dragover','dragenter'].forEach(e => apsd.addEventListener(e, ev => { ev.preventDefault(); apsd.classList.add('on'); }));
+['dragleave','drop'].forEach(e => apsd.addEventListener(e, ev => { ev.preventDefault(); apsd.classList.remove('on'); }));
+apsd.ondrop = ev => { apsf.files = ev.dataTransfer.files; apsf.onchange(); };
+apsf.onchange = async () => {
+ const f = apsf.files[0]; if (!f) return;
+ apsst.textContent = `Enviando ${f.name} para tradução SVF2 no Autodesk APS...`;
+ const fd = new FormData(); fd.append('files', f);
+ try {
+  const resp = await fetch(API + '/api/aps/translate', { method: 'POST', body: fd });
+  if (!resp.ok) { apsst.textContent = 'Aviso: ' + await resp.text(); return; }
+  const r = await resp.json();
+  apsst.innerHTML = `Job iniciado para <b>${esc(r.name)}</b> — acompanhando tradução...`;
+  await pollJob(r.jobId, `APS DWG: ${r.name}`, res => {
+   apsst.innerHTML = `DWG traduzido e pronto: <a class="lnk" href="${viewerHref(r.name, res?.urn ? 'aps:'+res.urn : '')}">Abrir no Viewer APS</a>`;
+  });
+ } catch (e) { apsst.textContent = 'Erro APS: ' + e; }
 };
-async function rev(id,action){
- await fetch(API+`/api/findings/${id}/review`,{method:'POST',headers:{'Content-Type':'application/json'},
-  body:JSON.stringify({action,reviewer:'web'})});load()}
-async function addRule(){
- const b={code:nc.value,category:ncat.value||'geral',description:nd.value,severity:1,aiCheckable:!!nh.value,aiPromptHint:nh.value||null};
- if(!b.code||!b.description){alert('preencha código e descrição');return}
- await fetch(API+'/api/checklist',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});
- nc.value=ncat.value=nd.value=nh.value='';load()}
-load();
+
+async function checkHealth() {
+ try {
+  const h = await (await fetch(API + '/api/health')).json();
+  document.getElementById('healthPill').innerHTML =
+   `DB: <b>${esc(h.db)}</b> · IA: <b>${h.ai ? 'ativa' : 'off'}</b> · APS: <b>${h.aps ? 'ativo' : 'off'}</b>`;
+ } catch {
+  document.getElementById('healthPill').innerHTML = `<span style="color:var(--red)">API offline</span>`;
+ }
+}
+
+async function loadAll() {
+ checkHealth();
+ try {
+  const [qRes, fRes, cRes, flRes, lkRes, rvRes, mlRes, rlRes] = await Promise.all([
+   fetch(API + '/api/queue').then(r => r.json()).catch(() => []),
+   fetch(API + '/api/findings').then(r => r.json()).catch(() => []),
+   fetch(API + '/api/checklist').then(r => r.json()).catch(() => []),
+   fetch(API + '/api/files').then(r => r.json()).catch(() => []),
+   fetch(API + '/api/links').then(r => r.json()).catch(() => []),
+   fetch(API + '/api/revisions').then(r => r.json()).catch(() => []),
+   fetch(API + '/api/master-list').then(r => r.json()).catch(() => []),
+   fetch(API + '/api/releases').then(r => r.json()).catch(() => [])
+  ]);
+  queueData = qRes; findingsData = fRes; allFiles = flRes; allLinks = lkRes; revisionsData = rvRes;
+
+  updateKpis();
+  renderQueue();
+  renderFindings();
+  populateAssemblySelector();
+  loadAssemblyLinks();
+  renderCrossFindings();
+  renderRevisions();
+  renderMasterList(mlRes);
+  renderReleases(rlRes);
+  renderChecklist(cRes);
+  loadReport();
+ } catch (e) { st('Falha ao carregar: ' + e); }
+}
+
+function updateKpis() {
+ const deliv = queueData.filter(x => !x.isCheckedScan).length;
+ const scans = queueData.filter(x => x.isCheckedScan).length;
+ document.getElementById('kFiles').textContent = queueData.length;
+ document.getElementById('kFilesSub').textContent = `${deliv} entregáveis · ${scans} scans -DC`;
+
+ const avg = queueData.length ? Math.round(queueData.reduce((a, x) => a + (x.conformityScore ?? 100), 0) / queueData.length) : 100;
+ const kConf = document.getElementById('kConf');
+ kConf.textContent = avg + '%';
+ kConf.style.color = avg >= 85 ? 'var(--green)' : avg >= 60 ? 'var(--amber)' : 'var(--red)';
+
+ const openF = findingsData.filter(f => (f.reviewStatus ?? 0) === 0);
+ const critF = findingsData.filter(f => f.severity === 3 && (f.reviewStatus ?? 0) !== 2 && (f.reviewStatus ?? 0) !== 3);
+ document.getElementById('kOpen').textContent = openF.length;
+ document.getElementById('cntOpen').textContent = openF.length;
+ document.getElementById('kCritSub').textContent = `${critF.length} críticos ativos`;
+
+ const missL = allLinks.filter(l => l.status === 'missing').length;
+ const divL = allLinks.filter(l => l.status === 'divergent').length;
+ document.getElementById('kLinks').textContent = allLinks.length;
+ document.getElementById('cntLinks').textContent = allLinks.length;
+ document.getElementById('kLinksSub').textContent = `${missL} ausentes · ${divL} divergentes`;
+
+ const authR = revisionsData.filter(r => r.authorizedForFabrication || r.authorizedForAssembly).length;
+ document.getElementById('kAuth').textContent = authR;
+}
+
+function renderQueue() {
+ const tb = document.getElementById('q');
+ if (!queueData.length) {
+  tb.innerHTML = '<tr><td colspan="9" style="color:var(--dim)">Nenhum lote importado ainda. Envie arquivos acima.</td></tr>';
+  return;
+ }
+ tb.innerHTML = queueData.map(x => {
+  const conf = x.conformityScore ?? 100;
+  const confCls = conf >= 85 ? 'ok' : conf >= 60 ? 'warn' : 'corrupt';
+  const badges = [
+   x.isCheckedScan ? '<span class="pill info" title="Desenho Conferido (scan de rodada anterior)">-DC</span>' : '',
+   x.isAps ? '<span class="pill info">APS SVF2</span>' : ''
+  ].filter(Boolean).join(' ');
+  const canAi = x.fileName.toLowerCase().endsWith('.pdf') || x.fileName.toLowerCase().endsWith('.png');
+  return `<tr>
+   <td class="score">${x.score}</td>
+   <td><span class="pill ${confCls}">${conf}/100</span></td>
+   <td><b>${esc(x.fileName)}</b> ${badges}</td>
+   <td class="mono">${esc(x.code || '—')}</td>
+   <td class="mono">${esc(x.rev || '—')}</td>
+   <td><span class="pill ${x.health==='Ok'?'ok':x.health==='Corrupt'?'corrupt':'warn'}">${esc(x.health)}</span></td>
+   <td><span class="pill ${x.id==='Identified'?'ok':x.id==='AiSuggested'?'info':'sem'}">${esc(x.id)}</span></td>
+   <td style="font-size:11.5px;color:var(--muted)">${x.openFindings||0} abertos · ${x.marksCount||0} marcas${x.linksCount?` · ${x.linksCount} links`:''}</td>
+   <td style="white-space:nowrap">
+    ${x.storage ? `<a class="lnk" href="${viewerHref(x.fileName, x.storage)}" style="margin-right:8px">Abrir Viewer</a>` : ''}
+    ${canAi ? `<button class="sec xs" onclick="analyzeSingle('${esc(x.fileName)}')">IA</button>` : ''}
+    ${canAi && !x.isCheckedScan ? `<button class="sec xs" onclick="jumpCrosscheck('${esc(x.fileName)}')" title="Ler Quadro de Aplicação">Quadro</button>` : ''}
+   </td>
+  </tr>`;
+ }).join('');
+}
+
+async function analyzeSingle(fileName) {
+ st(`Analisando ${fileName} com Gemini...`);
+ try {
+  const r = await fetch(`${API}/api/analyze-file/${encodeURIComponent(fileName)}`, { method: 'POST' });
+  if (!r.ok) { alert(await r.text()); st(''); return; }
+  const j = await r.json();
+  st(`${fileName}: ${j.findings} apontamentos (carimbo: ${j.carimbo || 'n/d'})`);
+  await loadAll();
+ } catch (e) { st('Erro IA: ' + e); }
+}
+
+async function analyzeAll() {
+ const r = await fetch(API + '/api/analyze-all', { method: 'POST' });
+ if (!r.ok) { alert(await r.text()); return; }
+ const j = await r.json();
+ await pollJob(j.jobId, 'Análise IA em Lote', res => {
+  if (res) st(`Análise concluída: ${res.analyzed} desenho(s), ${res.findings} apontamentos`);
+ });
+}
+
+async function purgeOpenAi() {
+ if (!confirm('Remover todos os apontamentos de IA ainda abertos (preservando os já revisados)?')) return;
+ const r = await (await fetch(API + '/api/findings/purge-open-ai', { method: 'POST' })).json();
+ st(`${r.removed} apontamentos abertos de IA removidos`);
+ await loadAll();
+}
+
+function renderFindings() {
+ const q = document.getElementById('fSearch').value.trim().toLowerCase();
+ const sev = document.getElementById('fSev').value;
+ const stat = document.getElementById('fStat').value;
+ const src = document.getElementById('fSrc').value;
+
+ const list = findingsData.filter(x => {
+  if (q && !`${x.fileName||''} ${x.ruleId||''} ${x.description||''} ${x.evidence||''} ${x.documentCode||''}`.toLowerCase().includes(q)) return false;
+  if (sev === 'high' && x.severity < 2) return false;
+  if (sev !== 'all' && sev !== 'high' && String(x.severity) !== sev) return false;
+  if (stat !== 'all' && String(x.reviewStatus ?? 0) !== stat) return false;
+  const isAi = x.source === 1 || x.source === 'Ai';
+  const isXchk = (x.ruleId || '').startsWith('XCHK-');
+  const isScan = (x.ruleId || '').startsWith('SCAN-');
+  if (src === 'ai' && !isAi) return false;
+  if (src === 'rule' && isAi) return false;
+  if (src === 'xchk' && !isXchk) return false;
+  if (src === 'scan' && !isScan) return false;
+  return true;
+ });
+
+ const tb = document.getElementById('f');
+ if (!list.length) {
+  tb.innerHTML = '<tr><td colspan="7" style="color:var(--dim)">Nenhum apontamento corresponde aos filtros atuais.</td></tr>';
+  return;
+ }
+ tb.innerHTML = list.map(x => {
+  const isAi = x.source === 1 || x.source === 'Ai';
+  const rs = x.reviewStatus ?? 0;
+  const stCls = rs === 1 || rs === 3 ? 'ok' : rs === 2 ? 'sem' : 'warn';
+  return `<tr>
+   <td class="sev-${x.severity}">${SN[x.severity] ?? x.severity}</td>
+   <td class="mono"><b>${esc(x.ruleId)}</b></td>
+   <td>
+    ${esc(x.fileName || x.documentCode || '—')}
+    ${x.fileName ? `<br><a class="lnk" href="${viewerHref(x.fileName)}" style="font-size:11.5px">Ver no Desenho</a>` : ''}
+   </td>
+   <td>
+    ${esc(x.description)}
+    ${x.evidence ? `<br><small style="color:var(--dim)">Evidência: ${esc(x.evidence)}</small>` : ''}
+    ${x.suggestedFix ? `<br><small style="color:#60a5fa">Sugestão: ${esc(x.suggestedFix)}</small>` : ''}
+   </td>
+   <td style="font-size:11.5px">${isAi ? `Suspeita IA${x.confidence ? ` (${Math.round(x.confidence*100)}%)` : ''}` : 'Objetivo (Regra)'}</td>
+   <td><span class="pill ${stCls}">${RN[rs]}</span></td>
+   <td style="white-space:nowrap">
+    <button class="ok-btn xs" title="Confirmar apontamento" onclick="rev('${x.id}','confirmed')">Confirmar</button>
+    <button class="sec xs" title="Registrar correção humana" onclick="revCorrect('${x.id}')">Corrigir</button>
+    <button class="sec xs" title="Descartar falso positivo" onclick="rev('${x.id}','dismissed')">Descartar</button>
+   </td>
+  </tr>`;
+ }).join('');
+}
+
+async function rev(id, action, correctedValue = null, comment = null) {
+ await fetch(`${API}/api/findings/${id}/review`, {
+  method: 'POST', headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ action, reviewer: getReviewer(), correctedValue, comment })
+ });
+ await loadAll();
+}
+
+async function revCorrect(id) {
+ const val = prompt('Descreva a correção aplicada / valor correto (alimenta a calibração da IA):');
+ if (val === null) return;
+ await rev(id, 'corrected', val);
+}
+
+// ABA 3: CRUZAMENTO CONJUNTO × DETALHE
+function populateAssemblySelector() {
+ const sel = document.getElementById('asmSelect');
+ const cur = sel.value;
+ const pdfs = allFiles.filter(f => (f.fileName || '').toLowerCase().endsWith('.pdf') && !f.isCheckedScan);
+ const withLinks = [...new Set(allLinks.map(l => l.assemblyFile))];
+ const names = [...new Set([...withLinks, ...pdfs.map(p => p.fileName)])];
+ sel.innerHTML = names.length
+  ? names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('')
+  : '<option value="">(importe PDFs de conjunto e detalhes primeiro)</option>';
+ if (cur && names.includes(cur)) sel.value = cur;
+}
+
+function jumpCrosscheck(fileName) {
+ openTab('cross', document.querySelectorAll('nav.tabs button')[2]);
+ const sel = document.getElementById('asmSelect');
+ if (![...sel.options].some(o => o.value === fileName)) {
+  const opt = document.createElement('option'); opt.value = fileName; opt.textContent = fileName; sel.appendChild(opt);
+ }
+ sel.value = fileName;
+ runCrosscheck();
+}
+
+async function loadAssemblyLinks() {
+ const asm = document.getElementById('asmSelect').value;
+ const tb = document.getElementById('linksBody');
+ if (!asm) { tb.innerHTML = '<tr><td colspan="7" style="color:var(--dim)">Selecione um desenho de conjunto.</td></tr>'; return; }
+ const links = allLinks.filter(l => l.assemblyFile === asm);
+ if (!links.length) {
+  tb.innerHTML = '<tr><td colspan="7" style="color:var(--dim)">Nenhum vínculo descoberto ainda para este conjunto. Clique em "1. Ler Quadro de Aplicação".</td></tr>';
+  renderCrossFindings();
+  return;
+ }
+ tb.innerHTML = links.map(l => {
+  const cls = l.status === 'confirmed' ? 'ok' : l.status === 'divergent' || l.status === 'missing' ? 'corrupt' : 'info';
+  return `<tr>
+   <td class="mono"><b>${esc(l.marca)}</b></td>
+   <td>${l.qty ?? '—'}</td>
+   <td>${esc(l.unitWeight || '—')}</td>
+   <td class="mono">${esc(l.detailCode)}</td>
+   <td>${l.detailFileName ? `<a class="lnk" href="${viewerHref(l.detailFileName)}">${esc(l.detailFileName)}</a>` : '<span style="color:var(--red)">Não importado no pacote</span>'}</td>
+   <td><span class="pill ${cls}">${esc(l.status)}</span></td>
+   <td style="white-space:nowrap">
+    ${l.detailFileName ? `<button class="xs" onclick="comparePair('${esc(asm)}','${esc(l.detailFileName)}')">Comparar IA</button> <a class="lnk" style="font-size:12px;margin:0 6px" href="${viewerHref(asm, '', l.detailFileName)}">Lado a Lado</a>` : ''}
+    <button class="sec xs" onclick="deleteLink('${l.id}')">×</button>
+   </td>
+  </tr>`;
+ }).join('');
+ renderCrossFindings();
+}
+
+async function runCrosscheck() {
+ const asm = document.getElementById('asmSelect').value;
+ if (!asm) { alert('Selecione um desenho de conjunto.'); return; }
+ st(`Lendo Quadro de Aplicação de ${asm}...`);
+ const r = await fetch(`${API}/api/crosscheck/${encodeURIComponent(asm)}`, { method: 'POST' });
+ if (!r.ok) { alert(await r.text()); st(''); return; }
+ const j = await r.json();
+ st(`Quadro lido (${j.via}): ${j.links} vínculos, ${j.missing} ausentes no pacote`);
+ await loadAll();
+}
+
+async function comparePair(asm, det) {
+ st(`Comparando ${asm} ↔ ${det} com Gemini...`);
+ const r = await fetch(`${API}/api/crosscompare/${encodeURIComponent(asm)}/${encodeURIComponent(det)}`, { method: 'POST' });
+ if (!r.ok) { alert(await r.text()); st(''); return; }
+ const j = await r.json();
+ st(`Par ${j.marca}: ${j.comparisons} itens comparados (${j.mismatches} divergências)`);
+ await loadAll();
+}
+
+async function runCrossCompareAll() {
+ const asm = document.getElementById('asmSelect').value;
+ if (!asm) return;
+ const r = await fetch(`${API}/api/crosscompare-all/${encodeURIComponent(asm)}`, { method: 'POST' });
+ if (!r.ok) { alert(await r.text()); return; }
+ const j = await r.json();
+ await pollJob(j.jobId, `Cruzamento IA: ${asm}`, res => {
+  if (res) st(`Cruzamento concluído: ${res.pairs} pares analisados, ${res.mismatches} divergências críticas`);
+ });
+}
+
+async function addManualLink() {
+ const asm = document.getElementById('asmSelect').value;
+ const marca = document.getElementById('lmMarca').value.trim();
+ const detailCode = document.getElementById('lmCode').value.trim();
+ if (!asm || !marca || !detailCode) { alert('Preencha conjunto, marca e código do detalhe.'); return; }
+ const qty = parseInt(document.getElementById('lmQty').value, 10);
+ const unitWeight = document.getElementById('lmWeight').value.trim() || null;
+ await fetch(API + '/api/links', {
+  method: 'POST', headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ assemblyFile: asm, marca, detailCode, qty: isNaN(qty) ? null : qty, unitWeight })
+ });
+ document.getElementById('lmMarca').value = document.getElementById('lmCode').value = document.getElementById('lmQty').value = document.getElementById('lmWeight').value = '';
+ await loadAll();
+}
+
+async function deleteLink(id) {
+ await fetch(`${API}/api/links/${id}`, { method: 'DELETE' });
+ await loadAll();
+}
+
+function renderCrossFindings() {
+ const asm = document.getElementById('asmSelect').value;
+ const hideOk = document.getElementById('hideMatches').checked;
+ const xchk = findingsData.filter(f => {
+  if (!(f.ruleId || '').startsWith('XCHK-')) return false;
+  if (asm && !(f.fileName || '').startsWith(asm)) return false;
+  if (hideOk && f.severity === 0) return false;
+  return true;
+ });
+ const tb = document.getElementById('xchkBody');
+ if (!xchk.length) {
+  tb.innerHTML = '<tr><td colspan="6" style="color:var(--dim)">Nenhuma comparação cruzada registrada para este filtro.</td></tr>';
+  return;
+ }
+ tb.innerHTML = xchk.map(x => `<tr>
+  <td class="sev-${x.severity}">${SN[x.severity] ?? x.severity}</td>
+  <td class="mono"><b>${esc(x.ruleId.replace('XCHK-',''))}</b></td>
+  <td><a class="lnk" href="${viewerHref(x.fileName)}">${esc(x.fileName)}</a></td>
+  <td>${esc(x.description)}${x.evidence ? `<br><small style="color:var(--dim)">${esc(x.evidence)}</small>` : ''}</td>
+  <td><span class="pill ${(x.reviewStatus??0)===1?'ok':(x.reviewStatus??0)===2?'sem':'warn'}">${RN[x.reviewStatus??0]}</span></td>
+  <td style="white-space:nowrap">
+   <button class="ok-btn xs" onclick="rev('${x.id}','confirmed')">✓</button>
+   <button class="sec xs" onclick="rev('${x.id}','dismissed')">✗</button>
+  </td>
+ </tr>`).join('');
+}
+
+// ABA 4: REVISÕES, LISTA MESTRA & LIBERAÇÃO
+function renderRevisions() {
+ const tb = document.getElementById('revsBody');
+ if (!revisionsData.length) {
+  tb.innerHTML = '<tr><td colspan="6" style="color:var(--dim)">Nenhuma revisão registrada. Clique em "Sincronizar Revisões dos Arquivos".</td></tr>';
+  return;
+ }
+ tb.innerHTML = revisionsData.map(r => {
+  const stVal = r.stateValue ?? 0;
+  return `<tr>
+   <td class="mono"><b>${esc(r.code)}</b></td>
+   <td class="mono">${esc(r.revision)}</td>
+   <td>${r.fileName ? `<a class="lnk" href="${viewerHref(r.fileName)}">${esc(r.fileName)}</a>` : '—'}</td>
+   <td>${r.blockingFindings > 0 ? `<span class="pill corrupt">${r.blockingFindings} bloqueante(s)</span>` : '<span class="pill ok">0 bloqueios</span>'}</td>
+   <td>
+    <select onchange="setRevState('${r.id}', this.value)" style="padding:4px 8px;font-size:12px">
+     ${STATE_LBL.map((lbl, idx) => `<option value="${idx}" ${idx===stVal?'selected':''}>${lbl}</option>`).join('')}
+    </select>
+   </td>
+   <td style="white-space:nowrap">
+    <button class="${r.authorizedForFabrication?'ok-btn':'sec'} xs" onclick="toggleAuth('${r.id}',0,${!r.authorizedForFabrication})">${r.authorizedForFabrication?'✓ ':''}Fabricação</button>
+    <button class="${r.authorizedForAssembly?'ok-btn':'sec'} xs" onclick="toggleAuth('${r.id}',1,${!r.authorizedForAssembly})">${r.authorizedForAssembly?'✓ ':''}Montagem</button>
+    <button class="${r.authorizedForConsultation?'ok-btn':'sec'} xs" onclick="toggleAuth('${r.id}',2,${!r.authorizedForConsultation})">${r.authorizedForConsultation?'✓ ':''}Consulta</button>
+   </td>
+  </tr>`;
+ }).join('');
+}
+
+async function syncRevisions() {
+ const r = await (await fetch(API + '/api/revisions/sync', { method: 'POST' })).json();
+ st(`Revisões sincronizadas: ${r.created} novas (${r.total} total)`);
+ await loadAll();
+}
+
+async function setRevState(id, val) {
+ await fetch(`${API}/api/revisions/${id}/state`, {
+  method: 'POST', headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ state: Number(val), user: getReviewer() })
+ });
+ await loadAll();
+}
+
+async function toggleAuth(id, purpose, grant) {
+ const r = await fetch(`${API}/api/revisions/${id}/authorize`, {
+  method: 'POST', headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ purpose, grant, user: getReviewer() })
+ });
+ if (!r.ok) { alert(await r.text()); return; }
+ await loadAll();
+}
+
+async function tryRelease() {
+ const code = document.getElementById('relCode').value.trim();
+ const rev = document.getElementById('relRev').value.trim() || '—';
+ const purpose = Number(document.getElementById('relPurpose').value);
+ if (!code) { alert('Informe o código do documento.'); return; }
+ const r = await (await fetch(API + '/api/release', {
+  method: 'POST', headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ code, rev, purpose, user: getReviewer() })
+ })).json();
+ const ok = r.decision === 0 || r.decision === 'Allowed';
+ document.getElementById('relOut').innerHTML = `<span class="pill ${ok?'ok':'corrupt'}">${ok?'EMISSÃO PERMITIDA':'EMISSÃO BLOQUEADA'}</span> ${esc(r.reason)}`;
+ await loadAll();
+}
+
+async function runTransfer() {
+ const code = document.getElementById('trCode').value.trim();
+ const from = document.getElementById('trFrom').value.trim();
+ const to = document.getElementById('trTo').value.trim();
+ if (!code || !from || !to) { alert('Informe código, revisão origem e revisão destino.'); return; }
+ const r = await fetch(API + '/api/transfer', {
+  method: 'POST', headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ code, from, to })
+ });
+ document.getElementById('trOut').textContent = r.ok
+  ? (j => `Preservadas: ${j.preserved}, Revalidação: ${j.revalidations}`)(await r.json())
+  : await r.text();
+}
+
+function renderReleases(list) {
+ const tb = document.getElementById('releasesBody');
+ tb.innerHTML = list.slice(0, 12).map(r => {
+  const ok = r.decision === 0 || r.decision === 'Allowed';
+  return `<tr>
+   <td style="font-size:11px;color:var(--dim)">${new Date(r.attemptedAt).toLocaleString('pt-BR')}</td>
+   <td class="mono">${esc(r.code)} (${esc(r.revision)})</td>
+   <td>${PN[r.purpose] ?? r.purpose}</td>
+   <td><span class="pill ${ok?'ok':'corrupt'}">${ok?'Permitida':'Bloqueada'}</span></td>
+   <td style="font-size:11.5px">${esc(r.reason)}</td>
+  </tr>`;
+ }).join('') || '<tr><td colspan="5" style="color:var(--dim)">Sem tentativas registradas.</td></tr>';
+}
+
+function renderMasterList(list) {
+ const tb = document.getElementById('mlBody');
+ tb.innerHTML = list.map(m => `<tr>
+  <td class="mono"><b>${esc(m.code)}</b></td>
+  <td class="mono">${esc(m.expectedRevision)}</td>
+  <td>${esc(m.title || '')}</td>
+  <td><button class="sec xs" onclick="delMasterItem('${m.id}')">×</button></td>
+ </tr>`).join('') || '<tr><td colspan="4" style="color:var(--dim)">Lista mestra vazia.</td></tr>';
+}
+
+async function addMasterItem() {
+ const code = document.getElementById('mlCode').value.trim();
+ const expectedRevision = document.getElementById('mlRev').value.trim();
+ const title = document.getElementById('mlTitle').value.trim();
+ if (!code) return;
+ await fetch(API + '/api/master-list', {
+  method: 'POST', headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ code, expectedRevision, title })
+ });
+ document.getElementById('mlCode').value = document.getElementById('mlRev').value = document.getElementById('mlTitle').value = '';
+ await loadAll();
+}
+
+async function importMasterBulk() {
+ const lines = document.getElementById('mlBulk').value.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+ for (const ln of lines) {
+  const [code, expectedRevision, title] = ln.split(/[;,\t]/).map(s => (s || '').trim());
+  if (!code) continue;
+  await fetch(API + '/api/master-list', {
+   method: 'POST', headers: { 'Content-Type': 'application/json' },
+   body: JSON.stringify({ code, expectedRevision: expectedRevision || '', title: title || '' })
+  });
+ }
+ document.getElementById('mlBulk').value = '';
+ await loadAll();
+}
+
+async function delMasterItem(id) {
+ await fetch(`${API}/api/master-list/${id}`, { method: 'DELETE' });
+ await loadAll();
+}
+
+async function validateMasterList() {
+ const r = await fetch(API + '/api/master-list/validate', { method: 'POST' });
+ if (!r.ok) { alert(await r.text()); return; }
+ const j = await r.json();
+ st(`Lista mestra validada: ${j.findings} apontamento(s) ML-001/ML-002 gerados`);
+ await loadAll();
+}
+
+// ABA 5: CHECKLIST, RELATÓRIO & AUDITORIA
+function renderChecklist(list) {
+ document.getElementById('c').innerHTML = list.map(x => `<tr>
+  <td class="mono"><b>${esc(x.code)}</b></td>
+  <td>${esc(x.category)}</td>
+  <td>${esc(x.description)}${x.aiPromptHint ? `<br><small style="color:var(--dim)">IA: ${esc(x.aiPromptHint)}</small>` : ''}</td>
+  <td class="sev-${x.severity}">${SN[x.severity] ?? x.severity}</td>
+  <td>${x.aiCheckable ? '<span class="pill ok">IA</span>' : '—'}</td>
+  <td><button class="sec xs" onclick="delRule('${x.id}')">×</button></td>
+ </tr>`).join('');
+}
+
+async function addRule() {
+ const b = {
+  code: document.getElementById('nc').value.trim(),
+  category: document.getElementById('ncat').value.trim() || 'geral',
+  severity: Number(document.getElementById('nsev').value),
+  description: document.getElementById('nd').value.trim(),
+  aiCheckable: !!document.getElementById('nh').value.trim(),
+  aiPromptHint: document.getElementById('nh').value.trim() || null
+ };
+ if (!b.code || !b.description) { alert('Preencha código e descrição da regra.'); return; }
+ await fetch(API + '/api/checklist', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) });
+ document.getElementById('nc').value = document.getElementById('ncat').value = document.getElementById('nd').value = document.getElementById('nh').value = '';
+ await loadAll();
+}
+
+async function delRule(id) {
+ await fetch(`${API}/api/checklist/${id}`, { method: 'DELETE' });
+ await loadAll();
+}
+
+async function seedDefaults() {
+ const r = await (await fetch(API + '/api/checklist/seed-defaults', { method: 'POST' })).json();
+ st(`${r.added} regra(s) padrão adicionada(s)`);
+ await loadAll();
+}
+
+async function loadReport() {
+ try {
+  reportCache = await (await fetch(API + '/api/report')).json();
+  const s = reportCache.summary;
+  document.getElementById('repSummary').innerHTML = `
+   <b>Pacote:</b> ${esc(reportCache.packageName)} ${reportCache.supplier ? `(${esc(reportCache.supplier)})` : ''}<br>
+   <b>Índice documental:</b> ${s.deliverableFiles} entregáveis + ${s.checkedScans} scans conferidos (-DC) · Conformidade média: <b>${s.avgConformity}%</b><br>
+   <b>Apontamentos:</b> ${s.openFindings} abertos · ${s.confirmedFindings} confirmados · ${s.correctedFindings} corrigidos · ${s.criticalActive} críticos bloqueantes<br>
+   <b>Cruzamento Conjunto×Detalhe:</b> ${s.totalLinks} vínculos (${s.missingLinks} ausentes, ${s.divergentLinks} divergentes)<br>
+   <b>Controle de Emissão:</b> ${s.authorizedRevisions} revisão(ões) formalmente autorizada(s)
+  `;
+ } catch {}
+}
+
+async function loadAudit() {
+ try {
+  const list = await (await fetch(API + '/api/audit')).json();
+  document.getElementById('auditBody').innerHTML = list.slice(0, 60).map(a => `<tr>
+   <td style="font-size:11px;color:var(--dim);white-space:nowrap">${new Date(a.at).toLocaleString('pt-BR')}</td>
+   <td class="mono">${esc(a.action)}</td>
+   <td>${esc(a.user || '—')}</td>
+   <td style="font-size:12px">${esc(a.detail)}</td>
+  </tr>`).join('') || '<tr><td colspan="4" style="color:var(--dim)">Sem eventos.</td></tr>';
+ } catch {}
+}
+
+function exportCsv() {
+ if (!reportCache) return;
+ const rows = [['Tipo','Arquivo_ou_Par','Codigo','Revisao','Severidade_ou_Score','Regra_ou_Estado','Status','Descricao']];
+ for (const f of reportCache.files)
+  rows.push(['ARQUIVO', f.fileName, f.code, f.rev, f.conformityScore, f.health, f.isCheckedScan ? 'SCAN-DC' : 'ENTREGAVEL', `Abertos=${f.openFindings}; MarcasAmarelas=${f.yellowMarks}; MarcasVermelhas=${f.redMarks}`]);
+ for (const x of reportCache.findings)
+  rows.push(['APONTAMENTO', x.fileName || '', x.documentCode || '', x.revision || '', SN[x.severity] ?? x.severity, x.ruleId, RN[x.reviewStatus ?? 0], (x.description || '') + (x.evidence ? ` [${x.evidence}]` : '')]);
+ const csv = '\uFEFF' + rows.map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(';')).join('\r\n');
+ const a = document.createElement('a');
+ a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+ a.download = `CheckDraw_Relatorio_${new Date().toISOString().slice(0,10)}.csv`;
+ a.click();
+}
+
+function openPrintableReport() {
+ if (!reportCache) return;
+ const r = reportCache, s = r.summary;
+ const w = window.open('', '_blank');
+ w.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>Relatório Técnico CheckDraw</title>
+ <style>body{font-family:'Segoe UI',sans-serif;padding:28px;color:#111}h1{font-size:20px;margin:0 0 4px}h2{font-size:14px;margin:22px 0 8px;border-bottom:2px solid #1e293b;padding-bottom:4px;text-transform:uppercase}
+ table{width:100%;border-collapse:collapse;font-size:11.5px}th,td{border:1px solid #cbd5e1;padding:6px 8px;text-align:left}th{background:#f1f5f9}
+ .meta{font-size:12px;color:#475569;margin-bottom:14px}.warn{background:#fef3c7;padding:8px 12px;border-left:4px solid #d97706;font-size:11.5px;margin-bottom:16px}
+ @media print{button{display:none}}</style></head><body>
+ <button onclick="window.print()" style="float:right;padding:8px 14px;cursor:pointer">Imprimir / Salvar PDF</button>
+ <h1>CheckDraw — Relatório Técnico de Conferência Documental</h1>
+ <div class="meta">Pacote: <b>${esc(r.packageName)}</b> · Fornecedor: <b>${esc(r.supplier || '—')}</b> · Emitido em: ${new Date().toLocaleString('pt-BR')} · Conferente: <b>${esc(getReviewer())}</b></div>
+ <div class="warn"><b>Aviso Técnico:</b> Este relatório consolida verificações objetivas e suspeitas apontadas por IA para apoio à conferência de engenharia. Não substitui a verificação nem a aprovação formal do Responsável Técnico.</div>
+ <h2>1. Índice de Documentos (${s.totalFiles} arquivos · Conformidade Média ${s.avgConformity}%)</h2>
+ <table><thead><tr><th>Arquivo</th><th>Código</th><th>Rev</th><th>Tipo</th><th>Conformidade</th><th>Achados Abertos</th><th>Marcas OK / Erro</th></tr></thead><tbody>
+ ${r.files.map(f => `<tr><td>${esc(f.fileName)}</td><td>${esc(f.code)}</td><td>${esc(f.rev)}</td><td>${f.isCheckedScan?'Scan -DC':'Entregável'}</td><td>${f.conformityScore}%</td><td>${f.openFindings}</td><td>${f.yellowMarks} / ${f.redMarks}</td></tr>`).join('')}
+ </tbody></table>
+ <h2>2. Matriz de Revisões e Autorizações (CA-04 / CA-05)</h2>
+ <table><thead><tr><th>Código</th><th>Rev</th><th>Estado</th><th>Fabricação</th><th>Montagem</th><th>Consulta</th></tr></thead><tbody>
+ ${r.revisions.map(rv => `<tr><td>${esc(rv.code)}</td><td>${esc(rv.revision)}</td><td>${STATE_LBL[rv.state]??rv.state}</td><td>${rv.authorizedForFabrication?'AUTORIZADA':'Bloqueada'}</td><td>${rv.authorizedForAssembly?'AUTORIZADA':'Bloqueada'}</td><td>${rv.authorizedForConsultation?'AUTORIZADA':'Bloqueada'}</td></tr>`).join('') || '<tr><td colspan="6">Sem revisões registradas</td></tr>'}
+ </tbody></table>
+ <h2>3. Pendências e Apontamentos Ativos (${r.findings.length})</h2>
+ <table><thead><tr><th>Sev</th><th>Regra</th><th>Arquivo / Par</th><th>Descrição &amp; Evidência</th><th>Status</th></tr></thead><tbody>
+ ${r.findings.map(x => `<tr><td>${SN[x.severity]??x.severity}</td><td>${esc(x.ruleId)}</td><td>${esc(x.fileName||x.documentCode||'')}</td><td>${esc(x.description)} ${x.evidence?`<br><i>${esc(x.evidence)}</i>`:''}</td><td>${RN[x.reviewStatus??0]}</td></tr>`).join('') || '<tr><td colspan="5">Sem apontamentos ativos</td></tr>'}
+ </tbody></table>
+ </body></html>`);
+ w.document.close();
+}
+
+loadAll();
 </script>
-</body></html>
+</body>
+</html>

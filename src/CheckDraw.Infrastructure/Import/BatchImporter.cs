@@ -19,7 +19,8 @@ public class BatchImporter
     {
         new CorruptFileRule(), new DuplicateHashRule(), new UnidentifiedFileRule(),
         new MultipleRevisionsRule(), new MasterListMissingRule(),
-        new MasterListRevisionMismatchRule(), new PdfRequiredRule(), new OverriddenDimensionRule()
+        new MasterListRevisionMismatchRule(), new PdfRequiredRule(),
+        new CheckedScanArtifactRule(), new BomIntegrityRule(), new OverriddenDimensionRule()
     };
 
     private readonly List<IDocumentExtractor> _extractors;
@@ -83,18 +84,36 @@ public class BatchImporter
             var extraction = extractor.Extract(file.FullPath);
             if (!extraction.Success)
             {
+                if (file.Extension == ".pdf" && extraction.Error != null && extraction.Error.Contains("provável scan"))
+                {
+                    file.Identity.Code = TitleBlockIdentifier.ExtractCodeFromFileName(file.FileName);
+                    file.Identity.Revision = TitleBlockIdentifier.ExtractRevisionFromFileName(file.FileName);
+                    file.Identity.EvidenceText = "PDF raster/scan — use análise IA ou ingestão -DC no Viewer";
+                    continue;
+                }
                 file.Health = FileHealth.Corrupt;
                 file.HealthDetail = extraction.Error;
                 continue;
             }
             extractions[file.Id] = extraction;
             file.Identity = TitleBlockIdentifier.Identify(extraction, contract);
+            if (file.Identity.Code == null && file.Extension == ".pdf")
+            {
+                var fnCode = TitleBlockIdentifier.ExtractCodeFromFileName(file.FileName);
+                if (!string.IsNullOrEmpty(fnCode))
+                {
+                    file.Identity.Code = fnCode;
+                    file.Identity.Revision = TitleBlockIdentifier.ExtractRevisionFromFileName(file.FileName);
+                    file.Identity.EvidenceText = "Código inferido do nome do PDF (carimbo em curvas — confirme com IA)";
+                }
+            }
         }
 
-        // 4. Registro de revisões (recebida ≠ autorizada — CA-04)
+        // 4. Registro de revisões (recebida ≠ autorizada — CA-04; exclui artefatos -DC)
         foreach (var g in batch.Files
-                     .Where(f => f.Identity.Status == IdentificationStatus.Identified && f.Identity.Code != null)
-                     .GroupBy(f => (f.Identity.Code!, f.Identity.Revision ?? "")))
+                     .Where(f => !TitleBlockIdentifier.IsCheckedScan(f.FileName) &&
+                                 !string.IsNullOrEmpty(f.Identity.Code))
+                     .GroupBy(f => (f.Identity.Code!, f.Identity.Revision ?? "—")))
         {
             var source = g.First();
             revisions.Add(new DocumentRevision

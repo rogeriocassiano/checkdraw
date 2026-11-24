@@ -25,6 +25,24 @@ public class ApsService
 
     public bool Available => _id != null && _secret != null;
 
+    /// <summary>Token restrito somente-leitura para o APS Viewer no navegador (nunca expõe escrita).</summary>
+    public async Task<(string accessToken, int expiresIn)> GetViewerTokenAsync(CancellationToken ct = default)
+    {
+        var resp = await _http.PostAsync($"{Base}/authentication/v2/token",
+            new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["client_id"] = _id!,
+                ["client_secret"] = _secret!,
+                ["grant_type"] = "client_credentials",
+                ["scope"] = "viewables:read"
+            }), ct);
+        resp.EnsureSuccessStatusCode();
+        var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync(ct));
+        var tok = doc.RootElement.GetProperty("access_token").GetString()!;
+        var exp = doc.RootElement.TryGetProperty("expires_in", out var e) ? e.GetInt32() : 3599;
+        return (tok, exp);
+    }
+
     private async Task<string> TokenAsync()
     {
         var resp = await _http.PostAsync($"{Base}/authentication/v2/token",

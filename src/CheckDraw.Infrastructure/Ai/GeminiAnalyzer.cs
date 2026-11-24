@@ -28,12 +28,37 @@ public class GeminiAnalyzer : IAiAnalyzer
 
     public GeminiAnalyzer(string? apiKey = null) =>
         _apiKey = apiKey ?? Environment.GetEnvironmentVariable("GEMINI_API_KEY")
-                  ?? (File.Exists("gemini.key") ? File.ReadAllText("gemini.key").Trim() : null);
+                  ?? ReadKeyFile("gemini.key") ?? ReadKeyFile(Path.Combine("..", "..", "gemini.key"));
+
+    private static string? ReadKeyFile(string path) =>
+        File.Exists(path) && File.ReadAllText(path).Trim() is { Length: > 0 } k ? k : null;
 
     public bool Available => _apiKey != null;
 
     /// <summary>Código DESENHO Nº lido no carimbo na última análise de checklist.</summary>
     public string? CarimboCode { get; private set; }
+
+    /// <summary>Revisão lida no carimbo/tabela de revisões na última análise de checklist.</summary>
+    public string? CarimboRevision { get; private set; }
+
+    /// <summary>Título lido no carimbo na última análise de checklist.</summary>
+    public string? CarimboTitle { get; private set; }
+
+    /// <summary>Último erro retornado pela API do Gemini (para diagnóstico transparente).</summary>
+    public string? LastError { get; private set; }
+
+    public static string DetectMimeType(byte[] data, string? fileName = null)
+    {
+        if (data.Length >= 4 && data[0] == 0x25 && data[1] == 0x50 && data[2] == 0x44 && data[3] == 0x46)
+            return "application/pdf";
+        if (data.Length >= 3 && data[0] == 0xFF && data[1] == 0xD8 && data[2] == 0xFF)
+            return "image/jpeg";
+        if (fileName != null && fileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+            return "application/pdf";
+        if (fileName != null && (fileName.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) || fileName.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase)))
+            return "image/jpeg";
+        return "image/png";
+    }
 
     public async Task<AiSuggestion> InterpretTitleBlockAsync(byte[] imageOrSnippet, CancellationToken ct = default)
     {
@@ -83,17 +108,21 @@ public class GeminiAnalyzer : IAiAnalyzer
                 $"- {f.ChecklistCode}: IA disse \"{f.AiOutput}\" → humano {(f.HumanAction == "confirmed" ? "confirmou" : f.HumanAction == "corrected" ? $"corrigiu para \"{f.HumanCorrection}\"" : "descartou como falso positivo")}"));
 
         var prompt = $$"""
-            Você é um verificador de desenhos técnicos. Analise a imagem contra o checklist.
-            REGRAS: nunca aprove/reprove — só aponte. Confiança honesta.
-            Avalie TODOS os itens do checklist e reporte TODA não-conformidade, por menor
-            que seja. Trate também como achado qualquer marcação manual de correção no
-            desenho (anotações a vermelho, rabiscos, nuvens de revisão) — elas indicam
-            pendências do conferente. Responda SOMENTE JSON:
-            {"summary":"...","carimbo_code":"número do desenho lido no carimbo (DESENHO Nº), exato, ou null","findings":[{"code":"CODIGO","severity":"info|warning|critical",
-            "description":"problema encontrado","detected":"valor encontrado ou null",
+            Você é um verificador rigoroso de desenhos técnicos de engenharia mecânica, tubulação e estruturas metálicas.
+            Analise o documento contra o checklist.
+            REGRAS: nunca aprove/reprove — só aponte com evidência objetiva. Confiança honesta (0.0 a 1.0).
+            Avalie TODOS os itens do checklist e reporte TODA não-conformidade, por menor que seja:
+            - Divergências entre balões/chamadas na vista e a Lista de Materiais (BOM) / Quadro de Aplicação;
+            - Quantidades, DN/diâmetros, materiais, pesos ou descrições faltantes/inconsistentes;
+            - Cotas ambíguas, sem tolerância exigida, sobrepostas ou ilegíveis;
+            - Campos obrigatórios vazios no carimbo ou tabela de revisões incoerente;
+            - Qualquer marcação manual de correção no desenho (anotações a vermelho, rabiscos, setas, nuvens de revisão — use o código do item aplicável ou "MANUAL-MARK").
+            Responda SOMENTE JSON:
+            {"summary":"...","carimbo_code":"número do desenho lido no carimbo (DESENHO Nº), exato, ou null","carimbo_rev":"revisão atual lida no carimbo/tabela de revisões (ex: E, 0, A) ou null","carimbo_title":"título do desenho no carimbo ou null","findings":[{"code":"CODIGO","severity":"info|warning|critical",
+            "description":"problema encontrado com localização clara","detected":"valor encontrado ou null",
             "expected":"valor esperado","bbox":{"x":0.0,"y":0.0,"w":0.0,"h":0.0},
             "suggested_fix":"correção sugerida ou null","confidence":0.0}]}
-            bbox = região do problema na imagem, coordenadas relativas 0-1.
+            bbox = região do problema na página/imagem, coordenadas relativas 0-1 (x,y canto superior esquerdo; w,h largura e altura).
             Obrigatório: reporte carimbo_code com o número DESENHO Nº lido no carimbo,
             EXATO como está escrito (ou null se ilegível). Não compare com o nome do
             arquivo — isso é feito deterministicamente fora da IA.
@@ -101,7 +130,8 @@ public class GeminiAnalyzer : IAiAnalyzer
             {{checklist}}{{context}}
             """;
 
-        var raw = await CallRawAsync(prompt, image, ct);
+        var mime = DetectMimeType(image, fileName);
+        var raw = await CallRawAsync(prompt, image, ct, mime);
         var findings = new List<Finding>();
         if (raw == null) return findings;
         try
@@ -109,8 +139,13 @@ public class GeminiAnalyzer : IAiAnalyzer
             var doc = JsonDocument.Parse(raw).RootElement;
             if (doc.TryGetProperty("carimbo_code", out var cc) && cc.ValueKind == JsonValueKind.String)
                 CarimboCode = cc.GetString();
+            if (doc.TryGetProperty("carimbo_rev", out var cr) && cr.ValueKind == JsonValueKind.String)
+                CarimboRevision = cr.GetString();
+            if (doc.TryGetProperty("carimbo_title", out var ctitle) && ctitle.ValueKind == JsonValueKind.String)
+                CarimboTitle = ctitle.GetString();
             if (!doc.TryGetProperty("findings", out var arr)) return findings;
             var codes = itemList.Select(i => i.Code).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            codes.Add("MANUAL-MARK");
             foreach (var f in arr.EnumerateArray())
             {
                 var code = f.GetProperty("code").GetString() ?? "";
@@ -249,12 +284,17 @@ public class GeminiAnalyzer : IAiAnalyzer
                              generationConfig = new { responseMimeType = "application/json" } };
             var url = $"https://generativelanguage.googleapis.com/v1beta/models/{Model}:generateContent?key={_apiKey}";
             using var resp = await _http.PostAsJsonAsync(url, body, ct);
-            if (!resp.IsSuccessStatusCode) return null;
+            if (!resp.IsSuccessStatusCode)
+            {
+                var errTxt = await resp.Content.ReadAsStringAsync(ct);
+                LastError = $"Gemini HTTP {(int)resp.StatusCode}: {errTxt[..Math.Min(240, errTxt.Length)]}";
+                return null;
+            }
             return JsonDocument.Parse(await resp.Content.ReadAsStringAsync(ct))
                 .RootElement.GetProperty("candidates")[0].GetProperty("content")
                 .GetProperty("parts")[0].GetProperty("text").GetString();
         }
-        catch { return null; }
+        catch (Exception ex) { LastError = ex.Message; return null; }
     }
 
     /// <summary>Chamada crua: devolve o texto JSON do modelo (ou null em erro).</summary>
@@ -265,7 +305,7 @@ public class GeminiAnalyzer : IAiAnalyzer
         {
             var parts = new object[]
             {
-                new { text = prompt },
+                new { text = About + prompt },
                 new { inline_data = new { mime_type = mimeType, data = Convert.ToBase64String(image) } }
             };
             var body = new
@@ -275,13 +315,18 @@ public class GeminiAnalyzer : IAiAnalyzer
             };
             var url = $"https://generativelanguage.googleapis.com/v1beta/models/{Model}:generateContent?key={_apiKey}";
             using var resp = await _http.PostAsJsonAsync(url, body, ct);
-            if (!resp.IsSuccessStatusCode) return null;
+            if (!resp.IsSuccessStatusCode)
+            {
+                var errTxt = await resp.Content.ReadAsStringAsync(ct);
+                LastError = $"Gemini HTTP {(int)resp.StatusCode}: {errTxt[..Math.Min(240, errTxt.Length)]}";
+                return null;
+            }
             var json = await resp.Content.ReadAsStringAsync(ct);
             return JsonDocument.Parse(json).RootElement.GetProperty("candidates")[0]
                 .GetProperty("content").GetProperty("parts")[0]
                 .GetProperty("text").GetString();
         }
-        catch { return null; }
+        catch (Exception ex) { LastError = ex.Message; return null; }
     }
 
     private async Task<AiSuggestion> CallAsync(string prompt, byte[] image, CancellationToken ct, byte[]? secondImage = null)
